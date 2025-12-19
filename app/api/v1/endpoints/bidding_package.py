@@ -46,6 +46,7 @@ SORTABLE_COLUMNS = [
 ]
 
 ALLOWED_POS_GROUPS = ["F", "D", "G", "C", "W"]
+ALLOWED_POSITIONS = ["LW", "C", "RW", "LD", "RD", "G"]
 ALLOWED_SERVERS = ["East", "Central", "West"]
 ALLOWED_CONSOLES = ["PS5", "Xbox Series X|S"]
 ALLOWED_LEAGUE_IDS = [37, 38, 39, 84, 112]  # LGHL, LGAHL, LGCHL, LGECHL, LGNCAA
@@ -57,6 +58,7 @@ ALLOWED_LEAGUE_IDS = [37, 38, 39, 84, 112]  # LGHL, LGAHL, LGCHL, LGECHL, LGNCAA
 
 @router.get("/data", response_model=Pagination[BiddingPackageData])
 async def get_bidding_package_data(
+    position: str | None = None,
     pos_group: str | None = None,
     server: str | None = None,
     console: str | None = None,
@@ -110,6 +112,15 @@ async def get_bidding_package_data(
     # Build WHERE clause
     where_clauses = []
     params = {}
+
+    if position is not None:
+        if position not in ALLOWED_POSITIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid position. Must be one of: {', '.join(ALLOWED_POSITIONS)}",
+            )
+        where_clauses.append("position = :position")
+        params["position"] = position
 
     if pos_group is not None:
         if pos_group not in ALLOWED_POS_GROUPS:
