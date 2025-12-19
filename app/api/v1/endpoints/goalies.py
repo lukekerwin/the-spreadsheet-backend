@@ -46,7 +46,7 @@ async def get_goalie_cards(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Build the base filter query
@@ -143,13 +143,21 @@ async def get_goalie_cards(
         cards.append(card)
     
     total_pages = (total + page_size - 1) // page_size
+
+    # Get last_updated from the last row, or "N/A" if no results
+    last_updated_str = "N/A"
+    if goalies:
+        last_row = goalies[-1]
+        if last_row.last_updated:
+            last_updated_str = last_row.last_updated.strftime("%Y-%m-%d")
+
     return Pagination(
         data=cards,
         page=page_number,
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=row.last_updated.strftime("%Y-%m-%d") if row.last_updated else "N/A"
+        last_updated=last_updated_str
     )
 
 # ===============================================
@@ -168,7 +176,7 @@ async def get_goalie_cards_search(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Build the base filter query

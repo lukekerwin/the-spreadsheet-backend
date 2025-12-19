@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import String, DateTime
+from sqlalchemy import String, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database.base_class import Base
 
@@ -28,7 +28,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # Subscription fields
     subscription_tier: Mapped[str] = mapped_column(
         String(20), nullable=False, default="free"
-    )  # 'free' or 'premium'
+    )  # 'free' or 'subscriber'
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subscription_status: Mapped[str] = mapped_column(
@@ -37,12 +37,20 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     subscription_current_period_end: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    subscription_cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
+    # One-time purchase access
+    has_bidding_package: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
 
     @property
     def has_premium_access(self) -> bool:
         """Check if user has premium access (either premium tier or superuser)."""
         if self.is_superuser:
             return True
-        if self.subscription_tier == "premium" and self.subscription_status in ("active", "trialing"):
+        if self.subscription_tier == "subscriber" and self.subscription_status in ("active", "trialing"):
             return True
         return False

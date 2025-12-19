@@ -10,10 +10,14 @@ from app.database.session import get_db
 from app.models.users import User
 
 
+# Create an optional user dependency for flexible auth
+_optional_jwt_user = fastapi_users.current_user(active=True, optional=True)
+
+
 async def get_current_user_flexible(
     session: AsyncSession = Depends(get_db),
     api_key: str | None = Depends(api_key_header),
-    jwt_user: User | None = Depends(current_active_user),
+    jwt_user: User | None = Depends(_optional_jwt_user),
 ) -> User:
     """Get current user from either JWT token or API key.
 
@@ -85,6 +89,60 @@ async def get_current_user_optional(
     return None
 
 
+async def get_premium_user(
+    user: User = Depends(get_current_user_flexible),
+) -> User:
+    """Require authenticated user with premium access.
+
+    First authenticates the user, then verifies they have premium access.
+    Use this dependency for premium-only endpoints.
+
+    Args:
+        user: Authenticated user from get_current_user_flexible
+
+    Returns:
+        Authenticated premium user
+
+    Raises:
+        HTTPException: 401 if not authenticated
+        HTTPException: 403 if authenticated but not premium
+    """
+    if not user.has_premium_access:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Subscriber access required to access this feature",
+        )
+    return user
+
+
+async def get_bidding_package_user(
+    user: User = Depends(get_current_user_flexible),
+) -> User:
+    """Require authenticated user with bidding package access.
+
+    First authenticates the user, then verifies they own the bidding package.
+    Use this dependency for bidding-package-only endpoints.
+
+    Args:
+        user: Authenticated user from get_current_user_flexible
+
+    Returns:
+        Authenticated user with bidding package access
+
+    Raises:
+        HTTPException: 401 if not authenticated
+        HTTPException: 403 if authenticated but doesn't own bidding package
+    """
+    if not user.has_bidding_package:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bidding Package purchase required to access this feature",
+        )
+    return user
+
+
 # Convenience aliases
 require_auth = get_current_user_flexible
 optional_auth = get_current_user_optional
+require_premium = get_premium_user
+require_bidding_package = get_bidding_package_user

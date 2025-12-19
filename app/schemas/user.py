@@ -13,7 +13,10 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     subscription_tier: str = "free"
     subscription_status: str = "none"
     subscription_current_period_end: datetime | None = None
+    subscription_cancel_at_period_end: bool = False
     has_premium_access: bool = False
+    # One-time purchase access
+    has_bidding_package: bool = False
 
 
 class UserCreate(schemas.BaseUserCreate):

@@ -15,6 +15,7 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 # Stripe configuration from settings
 STRIPE_WEBHOOK_SECRET = settings.STRIPE_WEBHOOK_SECRET
 STRIPE_PRICE_ID = settings.STRIPE_PRICE_ID
+STRIPE_BIDDING_PACKAGE_PRICE_ID = settings.STRIPE_BIDDING_PACKAGE_PRICE_ID
 FRONTEND_URL = settings.FRONTEND_URL
 
 
@@ -93,6 +94,46 @@ class StripeService:
                 "metadata": {
                     "user_id": str(user.id),
                 },
+            },
+        )
+
+        return checkout_session.url
+
+    @staticmethod
+    async def create_bidding_package_checkout(
+        session: AsyncSession,
+        user: User,
+        success_url: Optional[str] = None,
+        cancel_url: Optional[str] = None,
+    ) -> str:
+        """Create a Stripe Checkout session for bidding package one-time purchase.
+
+        Args:
+            session: Database session
+            user: User object
+            success_url: URL to redirect on success
+            cancel_url: URL to redirect on cancel
+
+        Returns:
+            Checkout session URL
+        """
+        customer_id = await StripeService.get_or_create_customer(session, user)
+
+        checkout_session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price": STRIPE_BIDDING_PACKAGE_PRICE_ID,
+                    "quantity": 1,
+                },
+            ],
+            mode="payment",  # One-time payment, not subscription
+            success_url=success_url or f"{FRONTEND_URL}/tools/bidding-package?purchase=success",
+            cancel_url=cancel_url or f"{FRONTEND_URL}/tools/bidding-package?purchase=canceled",
+            metadata={
+                "user_id": str(user.id),
+                "product_type": "bidding_package",
             },
         )
 
@@ -185,6 +226,8 @@ class StripeService:
         """Handle successful checkout completion."""
         customer_id = checkout_session.get("customer")
         subscription_id = checkout_session.get("subscription")
+        metadata = checkout_session.get("metadata", {})
+        mode = checkout_session.get("mode")
 
         if not customer_id:
             return
@@ -193,7 +236,14 @@ class StripeService:
         if not user:
             return
 
-        # Update subscription ID if we have one
+        # Handle one-time payment for bidding package
+        if mode == "payment" and metadata.get("product_type") == "bidding_package":
+            user.has_bidding_package = True
+            session.add(user)
+            await session.commit()
+            return
+
+        # Handle subscription checkout
         if subscription_id:
             user.stripe_subscription_id = subscription_id
 
@@ -235,6 +285,7 @@ class StripeService:
         user.subscription_status = "canceled"
         user.stripe_subscription_id = None
         user.subscription_current_period_end = None
+        user.subscription_cancel_at_period_end = False
 
         session.add(user)
         await session.commit()
@@ -288,19 +339,55 @@ class StripeService:
 
         # Set tier based on status
         if user.subscription_status in ("active", "trialing"):
-            user.subscription_tier = "premium"
+            user.subscription_tier = "subscriber"
         else:
             user.subscription_tier = "free"
 
-        # Set period end
+        # Set period end - prefer current_period_end, fall back to cancel_at if scheduled
         period_end = subscription.get("current_period_end")
+        cancel_at = subscription.get("cancel_at")
+
         if period_end:
             user.subscription_current_period_end = datetime.fromtimestamp(
                 period_end, tz=timezone.utc
             )
+        elif cancel_at:
+            # If no period_end but cancel_at exists, use that as the end date
+            user.subscription_current_period_end = datetime.fromtimestamp(
+                cancel_at, tz=timezone.utc
+            )
+
+        # Track if subscription is set to cancel - check both cancel_at_period_end and cancel_at
+        user.subscription_cancel_at_period_end = (
+            subscription.get("cancel_at_period_end", False) or cancel_at is not None
+        )
 
         session.add(user)
         await session.commit()
+
+    @staticmethod
+    async def sync_subscription_from_stripe(
+        session: AsyncSession,
+        user: User,
+    ) -> bool:
+        """Sync user's subscription data from Stripe.
+
+        Args:
+            session: Database session
+            user: User object
+
+        Returns:
+            True if subscription was synced
+        """
+        if not user.stripe_subscription_id:
+            return False
+
+        try:
+            subscription = stripe.Subscription.retrieve(user.stripe_subscription_id)
+            await StripeService._update_user_subscription(session, subscription)
+            return True
+        except stripe.error.StripeError:
+            return False
 
     @staticmethod
     async def cancel_subscription(
@@ -327,13 +414,15 @@ class StripeService:
                 user.stripe_subscription_id,
                 cancel_at_period_end=True
             )
-            user.subscription_status = "canceled"
+            user.subscription_cancel_at_period_end = True
+            # Status stays active until period ends
         else:
             # Cancel immediately
             stripe.Subscription.delete(user.stripe_subscription_id)
             user.subscription_tier = "free"
             user.subscription_status = "canceled"
             user.stripe_subscription_id = None
+            user.subscription_cancel_at_period_end = False
 
         session.add(user)
         await session.commit()

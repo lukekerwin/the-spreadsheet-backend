@@ -46,7 +46,7 @@ async def get_team_cards(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Build the base filter query
@@ -116,13 +116,21 @@ async def get_team_cards(
         cards.append(card)
     
     total_pages = (total + page_size - 1) // page_size
+
+    # Get last_updated from the last row, or "N/A" if no results
+    last_updated_str = "N/A"
+    if teams:
+        last_row = teams[-1]
+        if last_row.last_updated:
+            last_updated_str = last_row.last_updated.strftime("%Y-%m-%d")
+
     return Pagination(
         data=cards,
         page=page_number,
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=row.last_updated.strftime("%Y-%m-%d") if row.last_updated else "N/A"
+        last_updated=last_updated_str
     )
 
 # ===============================================
@@ -141,7 +149,7 @@ async def get_team_cards_search(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Build the base filter query
@@ -175,19 +183,21 @@ async def get_team_cards_search(
 async def get_team_sos_filters(
     season_id: int,
     league_id: int,
+    game_type_id: int = 1,
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_auth),
 ):
     """Get distinct combinations of week_id and game_dow for team SOS filters.
 
-    Always uses game_type_id = 1 (regular season).
-    Returns unique weeks and days of week available for the given season and league.
+    Returns unique weeks and days of week available for the given season, league, and game type.
     """
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=53):
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Query for distinct week_ids and game_dow values
 
@@ -197,7 +207,7 @@ async def get_team_sos_filters(
             and_(
                 TeamSOS.season_id == season_id,
                 TeamSOS.league_id == league_id,
-                TeamSOS.game_type_id == 1,  # Always regular season
+                TeamSOS.game_type_id == game_type_id,
             )
         )
         .order_by(TeamSOS.week_id)
@@ -209,7 +219,7 @@ async def get_team_sos_filters(
             and_(
                 TeamSOS.season_id == season_id,
                 TeamSOS.league_id == league_id,
-                TeamSOS.game_type_id == 1,  # Always regular season
+                TeamSOS.game_type_id == game_type_id,
             )
         )
         .order_by(TeamSOS.game_dow)
@@ -257,6 +267,7 @@ async def get_team_sos_filters(
 async def get_team_sos_data(
     season_id: int,
     league_id: int,
+    game_type_id: int = 1,
     week_id: int = 0,
     game_dow: int = -1,
     session: AsyncSession = Depends(get_db),
@@ -264,9 +275,8 @@ async def get_team_sos_data(
 ):
     """Get team strength of schedule data.
 
-    Always uses game_type_id = 1 (regular season).
-
     Parameters:
+    - game_type_id: 1 for regular season, 2 for playoffs
     - week_id: 0 for all weeks/season aggregate, > 0 for specific week
     - game_dow: -1 for all days/weekly aggregate, 0-6 for specific day (0=Sunday)
     """
@@ -275,12 +285,14 @@ async def get_team_sos_data(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Build filters
     filters = [
         TeamSOS.season_id == season_id,
         TeamSOS.league_id == league_id,
-        TeamSOS.game_type_id == 1,  # Always regular season
+        TeamSOS.game_type_id == game_type_id,
         TeamSOS.week_id == week_id,
         TeamSOS.game_dow == game_dow,
     ]

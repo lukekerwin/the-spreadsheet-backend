@@ -49,8 +49,8 @@ async def get_goalie_stats(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
-        raise HTTPException(status_code=400, detail="Invalid game_type_id (only 1 supported)")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
 
     if not validate_param("page_number", page_number, gt=0):
         raise HTTPException(status_code=400, detail="Invalid page_number (must be > 0)")
@@ -187,13 +187,14 @@ async def get_goalie_stats(
 async def get_goalie_stats_filters(
     season_id: int,
     league_id: int,
+    game_type_id: int = 1,
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_auth),
 ):
     """
     Get available teams for goalie stats filtering.
 
-    Returns distinct team names for the given season and league,
+    Returns distinct team names for the given season, league, and game type,
     sorted alphabetically.
 
     Protected endpoint requiring authentication.
@@ -205,12 +206,16 @@ async def get_goalie_stats_filters(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
+
     # Query for distinct team names
     statement = (
         select(distinct(GoalieStatsPage.team_name))
         .where(
             GoalieStatsPage.season_id == season_id,
             GoalieStatsPage.league_id == league_id,
+            GoalieStatsPage.game_type_id == game_type_id,
             GoalieStatsPage.team_name.isnot(None)
         )
         .order_by(GoalieStatsPage.team_name)
@@ -246,8 +251,8 @@ async def get_goalie_stats_names(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
-        raise HTTPException(status_code=400, detail="Invalid game_type_id (only 1 supported)")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
 
     # Build filters
     filters = [

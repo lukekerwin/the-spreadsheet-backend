@@ -76,8 +76,8 @@ async def get_player_stats(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
-        raise HTTPException(status_code=400, detail="Invalid game_type_id (only 1 supported)")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
 
     if not validate_param("pos_group", pos_group, allowed_values=["C", "W", "D"]):
         raise HTTPException(status_code=400, detail="Invalid pos_group (must be C, W, or D)")
@@ -220,13 +220,14 @@ async def get_player_stats(
 async def get_player_stats_filters(
     season_id: int,
     league_id: int,
+    game_type_id: int = 1,
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_auth),
 ):
     """
     Get available teams for player stats filtering.
 
-    Returns distinct team names for the given season and league,
+    Returns distinct team names for the given season, league, and game type,
     sorted alphabetically.
 
     Protected endpoint requiring authentication.
@@ -238,12 +239,16 @@ async def get_player_stats_filters(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
+
     # Query for distinct team names
     statement = (
         select(distinct(PlayerStatsPage.team_name))
         .where(
             PlayerStatsPage.season_id == season_id,
             PlayerStatsPage.league_id == league_id,
+            PlayerStatsPage.game_type_id == game_type_id,
             PlayerStatsPage.team_name.isnot(None)
         )
         .order_by(PlayerStatsPage.team_name)
@@ -280,8 +285,8 @@ async def get_player_stats_names(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1]):
-        raise HTTPException(status_code=400, detail="Invalid game_type_id (only 1 supported)")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
 
     if not validate_param("pos_group", pos_group, allowed_values=["C", "W", "D"]):
         raise HTTPException(status_code=400, detail="Invalid pos_group (must be C, W, or D)")

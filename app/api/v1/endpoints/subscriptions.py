@@ -27,6 +27,7 @@ class SubscriptionStatus(BaseModel):
     tier: str
     status: str
     current_period_end: str | None
+    cancel_at_period_end: bool
     has_premium_access: bool
 
 
@@ -43,6 +44,7 @@ async def get_subscription_status(
             if current_user.subscription_current_period_end
             else None
         ),
+        cancel_at_period_end=current_user.subscription_cancel_at_period_end,
         has_premium_access=current_user.has_premium_access,
     )
 
@@ -104,6 +106,36 @@ async def create_portal_session(
         )
 
 
+@router.post("/purchase-bidding-package", response_model=CheckoutResponse)
+async def purchase_bidding_package(
+    current_user: User = Depends(require_auth),
+    session: AsyncSession = Depends(get_db),
+) -> CheckoutResponse:
+    """Create a Stripe Checkout session for purchasing the Bidding Package.
+
+    This is a one-time payment, not a subscription.
+    Returns a URL to redirect the user to for payment.
+    """
+    # Check if user already owns the bidding package
+    if current_user.has_bidding_package:
+        raise HTTPException(
+            status_code=400,
+            detail="You already own the Bidding Package."
+        )
+
+    try:
+        checkout_url = await StripeService.create_bidding_package_checkout(
+            session=session,
+            user=current_user,
+        )
+        return CheckoutResponse(checkout_url=checkout_url)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create checkout session: {str(e)}"
+        )
+
+
 @router.post("/cancel")
 async def cancel_subscription(
     current_user: User = Depends(require_auth),
@@ -130,6 +162,37 @@ async def cancel_subscription(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to cancel subscription: {str(e)}"
+        )
+
+
+@router.post("/sync")
+async def sync_subscription(
+    current_user: User = Depends(require_auth),
+    session: AsyncSession = Depends(get_db),
+):
+    """Sync subscription data from Stripe.
+
+    This refreshes the local subscription data with the latest from Stripe.
+    """
+    if not current_user.stripe_subscription_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No subscription to sync."
+        )
+
+    try:
+        success = await StripeService.sync_subscription_from_stripe(
+            session=session,
+            user=current_user,
+        )
+        if success:
+            return {"message": "Subscription synced successfully."}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to sync subscription.")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to sync subscription: {str(e)}"
         )
 
 

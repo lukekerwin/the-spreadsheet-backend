@@ -64,5 +64,5 @@ def get_subscription_message(user: Optional[User], current_week: int, user_week:
     if user is None or not user.has_premium_access:
         if current_week > user_week:
             weeks_behind = current_week - user_week
-            return f"You're viewing data from {weeks_behind} week(s) ago. Upgrade to Premium for real-time updates after each game night."
+            return f"You're viewing data from {weeks_behind} week(s) ago. Subscribe for real-time updates after each game night."
     return None
