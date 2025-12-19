@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     playoff_odds,
     subscriptions,
     bidding_package,
+    favorites,
 )
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 
@@ -78,3 +79,4 @@ api_v1_router.include_router(teams.router, prefix="/teams", tags=['Teams'])
 api_v1_router.include_router(playoff_odds.router, prefix="/playoff-odds", tags=["Playoff Odds"])
 api_v1_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["Subscriptions"])
 api_v1_router.include_router(bidding_package.router, prefix="/bidding-package", tags=["Bidding Package"])
+api_v1_router.include_router(favorites.router, prefix="/favorites", tags=["Favorites"])
