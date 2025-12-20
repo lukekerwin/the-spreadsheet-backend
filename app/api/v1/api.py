@@ -85,6 +85,27 @@ async def debug_state(state: str):
         logger.error(f"[Debug] Unknown ERROR: {type(e).__name__}: {e}")
         return {"status": "error", "error": f"{type(e).__name__}: {e}"}
 
+# Custom OAuth callback that logs everything
+@api_v1_router.get("/auth/google/callback-debug")
+async def google_callback_debug(
+    request: Request,
+    code: str = None,
+    state: str = None,
+    error: str = None,
+):
+    """Debug callback to see all parameters."""
+    logger.info(f"[Callback Debug] code: {code[:20] if code else None}...")
+    logger.info(f"[Callback Debug] state: {state[:50] if state else None}...")
+    logger.info(f"[Callback Debug] error param: {error}")
+    logger.info(f"[Callback Debug] All query params: {dict(request.query_params)}")
+
+    return {
+        "code": code[:20] + "..." if code else None,
+        "state": state[:50] + "..." if state else None,
+        "error": error,
+        "all_params": dict(request.query_params)
+    }
+
 api_v1_router.include_router(
     fastapi_users.get_oauth_router(
         google_oauth_client,
