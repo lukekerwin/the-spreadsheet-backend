@@ -58,6 +58,7 @@ ALLOWED_LEAGUE_IDS = [37, 38, 39, 84, 112]  # LGHL, LGAHL, LGCHL, LGECHL, LGNCAA
 
 @router.get("/data", response_model=Pagination[BiddingPackageData])
 async def get_bidding_package_data(
+    search: str | None = None,
     position: str | None = None,
     pos_group: str | None = None,
     server: str | None = None,
@@ -78,6 +79,7 @@ async def get_bidding_package_data(
     Requires one-time Bidding Package purchase.
 
     Args:
+        search: Search player names (case-insensitive partial match)
         pos_group: Filter by position group (F, D, G, C, W)
         server: Filter by server (East, Central, West)
         console: Filter by console (PS5, Xbox Series X|S)
@@ -112,6 +114,10 @@ async def get_bidding_package_data(
     # Build WHERE clause
     where_clauses = []
     params = {}
+
+    if search is not None and search.strip():
+        where_clauses.append("LOWER(player_name) LIKE LOWER(:search)")
+        params["search"] = f"%{search.strip()}%"
 
     if position is not None:
         if position not in ALLOWED_POSITIONS:
