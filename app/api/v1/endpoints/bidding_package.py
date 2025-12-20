@@ -344,19 +344,19 @@ async def get_bidding_package_player(
     )
 
     # Get historical season stats with ratings and contracts
-    # Join aggregations, GAR, SOS, and rosters tables
+    # Join agg, GAR, SOS, and rosters tables
     seasons_query = text("""
         WITH player_seasons AS (
             SELECT DISTINCT
-                agg.season_id,
-                agg.league_id,
-                agg.game_type_id,
-                agg.player_id,
-                agg.pos_group
-            FROM aggregations.agg_player_season_stats agg
-            WHERE agg.player_id = :player_id
-              AND agg.game_type_id = 1
-              AND agg.league_id IN (37, 38, 39, 84, 112)
+                stats.season_id,
+                stats.league_id,
+                stats.game_type_id,
+                stats.player_id,
+                stats.pos_group
+            FROM agg.agg_player_season_stats stats
+            WHERE stats.player_id = :player_id
+              AND stats.game_type_id = 1
+              AND stats.league_id IN (37, 38, 39, 84, 112)
         )
         SELECT
             ps.season_id,
@@ -369,23 +369,23 @@ async def get_bidding_package_player(
             t.team_name,
             r.contract,
 
-            -- Basic stats from aggregations
-            agg.gp as games_played,
-            agg.win as wins,
-            agg.loss as losses,
-            agg.otl as ot_losses,
-            agg.points,
-            agg.goals,
-            agg.assists,
-            agg.plus_minus,
-            agg.toi,
-            agg.shots,
-            agg.hits,
-            agg.blocks,
-            agg.takeaways,
-            agg.interceptions,
-            agg.giveaways,
-            agg.pim,
+            -- Basic stats from agg schema
+            stats.gp as games_played,
+            stats.win as wins,
+            stats.loss as losses,
+            stats.otl as ot_losses,
+            stats.points,
+            stats.goals,
+            stats.assists,
+            stats.plus_minus,
+            stats.toi,
+            stats.shots,
+            stats.hits,
+            stats.blocks,
+            stats.takeaways,
+            stats.interceptions,
+            stats.giveaways,
+            stats.pim,
 
             -- GAR metrics
             gar.expected_goals,
@@ -405,12 +405,12 @@ async def get_bidding_package_player(
 
         FROM player_seasons ps
 
-        LEFT JOIN aggregations.agg_player_season_stats agg
-            ON ps.player_id = agg.player_id
-            AND ps.season_id = agg.season_id
-            AND ps.league_id = agg.league_id
-            AND ps.game_type_id = agg.game_type_id
-            AND ps.pos_group = agg.pos_group
+        LEFT JOIN agg.agg_player_season_stats stats
+            ON ps.player_id = stats.player_id
+            AND ps.season_id = stats.season_id
+            AND ps.league_id = stats.league_id
+            AND ps.game_type_id = stats.game_type_id
+            AND ps.pos_group = stats.pos_group
 
         LEFT JOIN gar.gar_player_season gar
             ON ps.player_id = gar.player_id
