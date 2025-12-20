@@ -1,11 +1,16 @@
 """API v1 router configuration."""
 
 import os
+import logging
 from fastapi import APIRouter
 from app.core.users import fastapi_users
 from app.core.security import auth_backend
 from app.core.oauth import google_oauth_client
 from app.core.config import settings
+
+# Debug: Log the SECRET_KEY being used for OAuth router
+logger = logging.getLogger(__name__)
+logger.info(f"[OAuth Router] SECRET_KEY at router config: {settings.SECRET_KEY[:8]}...")
 from app.api.v1.endpoints import (
     players,
     goalies,

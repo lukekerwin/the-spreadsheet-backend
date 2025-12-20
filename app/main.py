@@ -6,21 +6,10 @@ Configures API documentation visibility based on environment.
 """
 
 import os
-import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.api import api_v1_router
-
-# Startup diagnostic for OAuth debugging - REMOVE AFTER FIXING
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.info(f"=== STARTUP DIAGNOSTIC ===")
-logger.info(f"ENVIRONMENT: {settings.ENVIRONMENT}")
-logger.info(f"SECRET_KEY from settings: {settings.SECRET_KEY[:8]}..." if settings.SECRET_KEY else "SECRET_KEY: NOT SET")
-logger.info(f"SECRET_KEY from os.getenv: {os.getenv('SECRET_KEY', 'NOT SET')[:8]}..." if os.getenv('SECRET_KEY') else "SECRET_KEY env: NOT SET")
-logger.info(f"FRONTEND_URL: {os.getenv('FRONTEND_URL', 'NOT SET')}")
-logger.info(f"===========================")
 
 # ============================================
 # APPLICATION FACTORY
