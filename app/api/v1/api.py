@@ -2,13 +2,15 @@
 
 import os
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import JSONResponse
 from app.core.users import fastapi_users
 from app.core.security import auth_backend
 from app.core.oauth import google_oauth_client
 from app.core.config import settings
 
 # Debug: Log the SECRET_KEY being used for OAuth router
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info(f"[OAuth Router] SECRET_KEY at router config: {settings.SECRET_KEY[:8]}...")
 from app.api.v1.endpoints import (
@@ -55,6 +57,33 @@ api_v1_router.include_router(
 # In production, use the FRONTEND_URL env var, in development use localhost
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 OAUTH_REDIRECT_URL = f"{FRONTEND_URL}/auth/callback/google"
+
+# Debug endpoint to test state token decoding
+@api_v1_router.get("/auth/debug-state")
+async def debug_state(state: str):
+    """Debug endpoint to test state token decoding."""
+    import jwt
+    from fastapi_users.jwt import decode_jwt
+
+    logger.info(f"[Debug] Attempting to decode state: {state[:50]}...")
+    logger.info(f"[Debug] Using SECRET_KEY: {settings.SECRET_KEY[:8]}...")
+
+    try:
+        decoded = decode_jwt(state, settings.SECRET_KEY, ["fastapi-users:oauth-state"])
+        logger.info(f"[Debug] Decode SUCCESS: {decoded}")
+        return {"status": "success", "decoded": decoded}
+    except jwt.ExpiredSignatureError as e:
+        logger.error(f"[Debug] Token EXPIRED: {e}")
+        return {"status": "expired", "error": str(e)}
+    except jwt.InvalidSignatureError as e:
+        logger.error(f"[Debug] INVALID SIGNATURE: {e}")
+        return {"status": "invalid_signature", "error": str(e)}
+    except jwt.DecodeError as e:
+        logger.error(f"[Debug] Decode ERROR: {e}")
+        return {"status": "decode_error", "error": str(e)}
+    except Exception as e:
+        logger.error(f"[Debug] Unknown ERROR: {type(e).__name__}: {e}")
+        return {"status": "error", "error": f"{type(e).__name__}: {e}"}
 
 api_v1_router.include_router(
     fastapi_users.get_oauth_router(
