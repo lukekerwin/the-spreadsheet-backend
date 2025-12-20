@@ -6,10 +6,23 @@ Configures API documentation visibility based on environment.
 """
 
 import os
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api.v1.api import api_v1_router
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Log startup info
+logger.info(f"Starting application with SECRET_KEY: {settings.SECRET_KEY[:8]}...")
+logger.info(f"ENVIRONMENT: {settings.ENVIRONMENT}")
 
 # ============================================
 # APPLICATION FACTORY
@@ -49,6 +62,19 @@ def create_application() -> FastAPI:
 # ============================================
 
 app = create_application()
+
+# ============================================
+# EXCEPTION HANDLERS
+# ============================================
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Log all unhandled exceptions."""
+    logger.error(f"Unhandled exception on {request.method} {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
+    )
 
 # ============================================
 # ROOT ENDPOINTS
