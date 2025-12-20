@@ -12,6 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
 from app.models.users import User
 from app.schemas.bidding_package import BiddingPackageData
+from app.schemas.bidding_package_player import (
+    BiddingPackagePlayerDetail,
+    PlayerBasicInfo,
+    PlayerSeasonStats,
+)
 from app.schemas.common import Pagination
 from app.core.auth import require_bidding_package
 from app.util.helpers import validate_param
@@ -266,4 +271,222 @@ async def get_bidding_package_data(
         total=total,
         total_pages=total_pages,
         last_updated="N/A",  # View doesn't track last_updated
+    )
+
+
+# League ID to name mapping
+LEAGUE_NAMES = {
+    37: "NHL",
+    38: "AHL",
+    39: "CHL",
+    84: "ECHL",
+    112: "NCAA",
+}
+
+
+@router.get("/player/{player_id}", response_model=BiddingPackagePlayerDetail)
+async def get_bidding_package_player(
+    player_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_bidding_package),
+):
+    """
+    Get detailed player information including all historical seasons.
+
+    Requires one-time Bidding Package purchase.
+
+    Args:
+        player_id: The player's unique ID
+
+    Returns:
+        Player basic info and list of historical season stats with ratings.
+    """
+    # Get basic player info from bidding package
+    player_query = text("""
+        SELECT
+            signup_id,
+            player_id,
+            player_name,
+            position,
+            pos_group,
+            status,
+            server,
+            console,
+            signup_timestamp,
+            is_rostered,
+            current_team_id,
+            current_team_name
+        FROM api.bidding_package
+        WHERE player_id = :player_id
+        LIMIT 1
+    """)
+
+    player_result = await session.execute(player_query, {"player_id": player_id})
+    player_row = player_result.fetchone()
+
+    if not player_row:
+        raise HTTPException(status_code=404, detail="Player not found in bidding package")
+
+    # Build player basic info
+    player_info = PlayerBasicInfo(
+        player_id=player_row.player_id,
+        player_name=player_row.player_name,
+        position=player_row.position,
+        pos_group=player_row.pos_group,
+        signup_id=player_row.signup_id,
+        status=player_row.status,
+        server=player_row.server,
+        console=player_row.console,
+        signup_timestamp=player_row.signup_timestamp,
+        is_rostered=player_row.is_rostered,
+        current_team_id=player_row.current_team_id,
+        current_team_name=player_row.current_team_name,
+    )
+
+    # Get historical season stats with ratings and contracts
+    # Join aggregations, GAR, SOS, and rosters tables
+    seasons_query = text("""
+        WITH player_seasons AS (
+            SELECT DISTINCT
+                agg.season_id,
+                agg.league_id,
+                agg.game_type_id,
+                agg.player_id,
+                agg.pos_group
+            FROM aggregations.agg_player_season_stats agg
+            WHERE agg.player_id = :player_id
+              AND agg.game_type_id = 1
+              AND agg.league_id IN (37, 38, 39, 84, 112)
+        )
+        SELECT
+            ps.season_id,
+            ps.league_id,
+            ps.game_type_id,
+            ps.pos_group,
+
+            -- Team info from rosters
+            r.team_id,
+            t.team_name,
+            r.contract,
+
+            -- Basic stats from aggregations
+            agg.gp as games_played,
+            agg.win as wins,
+            agg.loss as losses,
+            agg.otl as ot_losses,
+            agg.points,
+            agg.goals,
+            agg.assists,
+            agg.plus_minus,
+            agg.toi,
+            agg.shots,
+            agg.hits,
+            agg.blocks,
+            agg.takeaways,
+            agg.interceptions,
+            agg.giveaways,
+            agg.pim,
+
+            -- GAR metrics
+            gar.expected_goals,
+            gar.expected_assists,
+            gar.goals_above_expected,
+            gar.assists_above_expected,
+            gar.offensive_gar,
+            gar.defensive_gar,
+            gar.total_gar,
+            gar.gar_per_60_percentile as war_percentile,
+            gar.off_per_60_percentile as offense_percentile,
+            gar.def_per_60_percentile as defense_percentile,
+
+            -- SOS metrics
+            sos.teammate_rating,
+            sos.opponent_rating
+
+        FROM player_seasons ps
+
+        LEFT JOIN aggregations.agg_player_season_stats agg
+            ON ps.player_id = agg.player_id
+            AND ps.season_id = agg.season_id
+            AND ps.league_id = agg.league_id
+            AND ps.game_type_id = agg.game_type_id
+            AND ps.pos_group = agg.pos_group
+
+        LEFT JOIN gar.gar_player_season gar
+            ON ps.player_id = gar.player_id
+            AND ps.season_id = gar.season_id
+            AND ps.league_id = gar.league_id
+            AND ps.game_type_id = gar.game_type_id
+            AND ps.pos_group = gar.pos_group
+
+        LEFT JOIN sos.sos_player_season sos
+            ON ps.player_id = sos.player_id
+            AND ps.season_id = sos.season_id
+            AND ps.league_id = sos.league_id
+            AND ps.game_type_id = sos.game_type_id
+            AND ps.pos_group = sos.pos_group
+
+        LEFT JOIN staging.stg_rosters r
+            ON ps.player_id = r.player_id
+            AND ps.season_id = r.season_id
+            AND ps.league_id = r.league_id
+
+        LEFT JOIN staging.stg_teams t
+            ON r.team_id = t.team_id
+            AND r.season_id = t.season_id
+            AND r.league_id = t.league_id
+
+        ORDER BY ps.season_id DESC, ps.league_id ASC
+    """)
+
+    seasons_result = await session.execute(seasons_query, {"player_id": player_id})
+    season_rows = seasons_result.fetchall()
+
+    # Transform to response schema
+    seasons = []
+    for row in season_rows:
+        seasons.append(
+            PlayerSeasonStats(
+                season_id=row.season_id,
+                league_id=int(row.league_id),
+                league_name=LEAGUE_NAMES.get(int(row.league_id)),
+                game_type_id=row.game_type_id,
+                pos_group=row.pos_group,
+                team_id=row.team_id,
+                team_name=row.team_name,
+                contract=row.contract,
+                games_played=row.games_played,
+                wins=row.wins,
+                losses=row.losses,
+                ot_losses=row.ot_losses,
+                points=row.points,
+                goals=row.goals,
+                assists=row.assists,
+                plus_minus=row.plus_minus,
+                toi=float(row.toi) if row.toi else None,
+                shots=row.shots,
+                hits=row.hits,
+                blocks=row.blocks,
+                takeaways=row.takeaways,
+                interceptions=row.interceptions,
+                giveaways=row.giveaways,
+                pim=row.pim,
+                expected_goals=float(row.expected_goals) if row.expected_goals else None,
+                expected_assists=float(row.expected_assists) if row.expected_assists else None,
+                goals_above_expected=float(row.goals_above_expected) if row.goals_above_expected else None,
+                assists_above_expected=float(row.assists_above_expected) if row.assists_above_expected else None,
+                offensive_gar=float(row.offensive_gar) if row.offensive_gar else None,
+                defensive_gar=float(row.defensive_gar) if row.defensive_gar else None,
+                total_gar=float(row.total_gar) if row.total_gar else None,
+                war_percentile=float(row.war_percentile) if row.war_percentile else None,
+                offense_percentile=float(row.offense_percentile) if row.offense_percentile else None,
+                defense_percentile=float(row.defense_percentile) if row.defense_percentile else None,
+                teammate_rating=float(row.teammate_rating) if row.teammate_rating else None,
+                opponent_rating=float(row.opponent_rating) if row.opponent_rating else None,
+            )
+        )
+
+    return BiddingPackagePlayerDetail(
+        player=player_info,
+        seasons=seasons,
     )

@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.core.users import fastapi_users
 from app.core.security import auth_backend
 from app.core.oauth import google_oauth_client
+from app.core.config import settings
 from app.api.v1.endpoints import (
     players,
     goalies,
@@ -54,7 +55,7 @@ api_v1_router.include_router(
     fastapi_users.get_oauth_router(
         google_oauth_client,
         auth_backend,
-        os.getenv("SECRET_KEY", "changeme"),  # Secret for state token
+        settings.SECRET_KEY,  # Secret for state token - MUST be set in production env
         redirect_url=OAUTH_REDIRECT_URL,  # Frontend callback
         associate_by_email=True,  # Auto-link accounts with same email
         is_verified_by_default=True,  # Trust Google-verified emails
@@ -63,7 +64,7 @@ api_v1_router.include_router(
     tags=["auth"],
 )
 api_v1_router.include_router(
-    fastapi_users.get_oauth_associate_router(google_oauth_client, UserRead, os.getenv("SECRET_KEY", "changeme")),
+    fastapi_users.get_oauth_associate_router(google_oauth_client, UserRead, settings.SECRET_KEY),
     prefix="/auth/google",
     tags=["auth"],
 )
