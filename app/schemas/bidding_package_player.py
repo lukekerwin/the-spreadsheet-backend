@@ -37,7 +37,7 @@ class PlayerSeasonStats(BaseModel):
     assists: int | None = None
     plus_minus: int | None = None
 
-    # Advanced stats
+    # Advanced stats (skaters)
     toi: float | None = None  # Time on ice in seconds
     shots: int | None = None
     hits: int | None = None
@@ -47,16 +47,28 @@ class PlayerSeasonStats(BaseModel):
     giveaways: int | None = None
     pim: int | None = None
 
-    # Expected metrics
+    # Goalie stats
+    shots_against: int | None = None
+    saves: int | None = None
+    goals_against: int | None = None
+    save_pct: float | None = None
+    gaa: float | None = None
+    shutouts: int | None = None
+
+    # Expected metrics (skaters)
     expected_goals: float | None = None
     expected_assists: float | None = None
     goals_above_expected: float | None = None
     assists_above_expected: float | None = None
 
-    # GAR metrics
+    # GAR metrics (skaters)
     offensive_gar: float | None = None
     defensive_gar: float | None = None
     total_gar: float | None = None
+
+    # Goalie advanced metrics
+    gsax: float | None = None  # Goals Saved Above Expected
+    gsaa: float | None = None  # Goals Saved Above Average
 
     # Ratings (0-1 scale)
     war_percentile: float | None = None
@@ -64,6 +76,10 @@ class PlayerSeasonStats(BaseModel):
     defense_percentile: float | None = None
     teammate_rating: float | None = None
     opponent_rating: float | None = None
+    # Goalie-specific percentiles
+    save_pct_percentile: float | None = None
+    gaa_percentile: float | None = None
+    gsax_percentile: float | None = None
 
 
 class PlayerBasicInfo(BaseModel):

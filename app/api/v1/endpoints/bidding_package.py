@@ -343,148 +343,273 @@ async def get_bidding_package_player(
         current_team_name=player_row.current_team_name,
     )
 
-    # Get historical season stats with ratings and contracts
-    # Join agg, GAR, SOS, and rosters tables
-    seasons_query = text("""
-        WITH player_seasons AS (
-            SELECT DISTINCT
-                stats.season_id,
-                stats.league_id,
-                stats.game_type_id,
-                stats.player_id,
-                stats.pos_group
-            FROM agg.agg_player_season_stats stats
-            WHERE stats.player_id = :player_id
-              AND stats.game_type_id = 1
-              AND stats.league_id IN (37, 38, 39, 84, 112)
-        )
-        SELECT
-            ps.season_id,
-            ps.league_id,
-            ps.game_type_id,
-            ps.pos_group,
+    # Determine if player is a goalie based on their current position
+    is_goalie = player_row.pos_group == "G"
 
-            -- Team info from rosters
-            r.team_id,
-            t.team_name,
-            r.contract,
-
-            -- Basic stats from agg schema
-            stats.gp as games_played,
-            stats.win as wins,
-            stats.loss as losses,
-            stats.otl as ot_losses,
-            stats.points,
-            stats.goals,
-            stats.assists,
-            stats.plus_minus,
-            stats.toi,
-            stats.shots,
-            stats.hits,
-            stats.blocks,
-            stats.takeaways,
-            stats.interceptions,
-            stats.giveaways,
-            stats.pim,
-
-            -- GAR metrics
-            gar.expected_goals,
-            gar.expected_assists,
-            gar.goals_above_expected,
-            gar.assists_above_expected,
-            gar.offensive_gar,
-            gar.defensive_gar,
-            gar.total_gar,
-            gar.gar_per_60_percentile as war_percentile,
-            gar.off_per_60_percentile as offense_percentile,
-            gar.def_per_60_percentile as defense_percentile,
-
-            -- SOS metrics
-            sos.teammate_rating,
-            sos.opponent_rating
-
-        FROM player_seasons ps
-
-        LEFT JOIN agg.agg_player_season_stats stats
-            ON ps.player_id = stats.player_id
-            AND ps.season_id = stats.season_id
-            AND ps.league_id = stats.league_id
-            AND ps.game_type_id = stats.game_type_id
-            AND ps.pos_group = stats.pos_group
-
-        LEFT JOIN gar.gar_player_season gar
-            ON ps.player_id = gar.player_id
-            AND ps.season_id = gar.season_id
-            AND ps.league_id = gar.league_id
-            AND ps.game_type_id = gar.game_type_id
-            AND ps.pos_group = gar.pos_group
-
-        LEFT JOIN sos.sos_player_season sos
-            ON ps.player_id = sos.player_id
-            AND ps.season_id = sos.season_id
-            AND ps.league_id = sos.league_id
-            AND ps.game_type_id = sos.game_type_id
-            AND ps.pos_group = sos.pos_group
-
-        LEFT JOIN staging.stg_rosters r
-            ON ps.player_id = r.player_id
-            AND ps.season_id = r.season_id
-            AND ps.league_id = r.league_id
-
-        LEFT JOIN staging.stg_teams t
-            ON r.team_id = t.team_id
-            AND r.season_id = t.season_id
-            AND r.league_id = t.league_id
-
-        ORDER BY ps.season_id DESC, ps.league_id ASC
-    """)
-
-    seasons_result = await session.execute(seasons_query, {"player_id": player_id})
-    season_rows = seasons_result.fetchall()
-
-    # Transform to response schema
     seasons = []
-    for row in season_rows:
-        seasons.append(
-            PlayerSeasonStats(
-                season_id=row.season_id,
-                league_id=int(row.league_id),
-                league_name=LEAGUE_NAMES.get(int(row.league_id)),
-                game_type_id=row.game_type_id,
-                pos_group=row.pos_group,
-                team_id=row.team_id,
-                team_name=row.team_name,
-                contract=row.contract,
-                games_played=row.games_played,
-                wins=row.wins,
-                losses=row.losses,
-                ot_losses=row.ot_losses,
-                points=row.points,
-                goals=row.goals,
-                assists=row.assists,
-                plus_minus=row.plus_minus,
-                toi=float(row.toi) if row.toi else None,
-                shots=row.shots,
-                hits=row.hits,
-                blocks=row.blocks,
-                takeaways=row.takeaways,
-                interceptions=row.interceptions,
-                giveaways=row.giveaways,
-                pim=row.pim,
-                expected_goals=float(row.expected_goals) if row.expected_goals else None,
-                expected_assists=float(row.expected_assists) if row.expected_assists else None,
-                goals_above_expected=float(row.goals_above_expected) if row.goals_above_expected else None,
-                assists_above_expected=float(row.assists_above_expected) if row.assists_above_expected else None,
-                offensive_gar=float(row.offensive_gar) if row.offensive_gar else None,
-                defensive_gar=float(row.defensive_gar) if row.defensive_gar else None,
-                total_gar=float(row.total_gar) if row.total_gar else None,
-                war_percentile=float(row.war_percentile) if row.war_percentile else None,
-                offense_percentile=float(row.offense_percentile) if row.offense_percentile else None,
-                defense_percentile=float(row.defense_percentile) if row.defense_percentile else None,
-                teammate_rating=float(row.teammate_rating) if row.teammate_rating else None,
-                opponent_rating=float(row.opponent_rating) if row.opponent_rating else None,
+
+    if is_goalie:
+        # Query goalie stats
+        goalie_query = text("""
+            WITH goalie_seasons AS (
+                SELECT DISTINCT
+                    stats.season_id,
+                    stats.league_id,
+                    stats.game_type_id,
+                    stats.player_id,
+                    stats.pos_group
+                FROM agg.agg_goalie_season_stats stats
+                WHERE stats.player_id = :player_id
+                  AND stats.game_type_id = 1
+                  AND stats.league_id IN (37, 38, 39, 84, 112)
             )
-        )
+            SELECT
+                gs.season_id,
+                gs.league_id,
+                gs.game_type_id,
+                gs.pos_group,
+
+                -- Team info from rosters
+                r.team_id,
+                t.team_name,
+                r.contract,
+
+                -- Basic goalie stats
+                stats.gp as games_played,
+                stats.win as wins,
+                stats.loss as losses,
+                stats.otl as ot_losses,
+                stats.toi,
+                stats.shots_against,
+                stats.saves,
+                stats.goals_against,
+                stats.sv_pct as save_pct,
+                stats.gaa,
+                stats.shutouts,
+
+                -- Goalie GAR metrics
+                gar.gsax,
+                gar.gsaa,
+                gar.gsax_per_60_percentile as gsax_percentile,
+                gar.sv_pct_percentile as save_pct_percentile,
+                gar.gaa_percentile,
+
+                -- SOS metrics
+                sos.teammate_rating,
+                sos.opponent_rating
+
+            FROM goalie_seasons gs
+
+            LEFT JOIN agg.agg_goalie_season_stats stats
+                ON gs.player_id = stats.player_id
+                AND gs.season_id = stats.season_id
+                AND gs.league_id = stats.league_id
+                AND gs.game_type_id = stats.game_type_id
+                AND gs.pos_group = stats.pos_group
+
+            LEFT JOIN gar.gar_goalie_season gar
+                ON gs.player_id = gar.player_id
+                AND gs.season_id = gar.season_id
+                AND gs.league_id = gar.league_id
+                AND gs.game_type_id = gar.game_type_id
+                AND gs.pos_group = gar.pos_group
+
+            LEFT JOIN sos.sos_player_season sos
+                ON gs.player_id = sos.player_id
+                AND gs.season_id = sos.season_id
+                AND gs.league_id = sos.league_id
+                AND gs.game_type_id = sos.game_type_id
+                AND gs.pos_group = sos.pos_group
+
+            LEFT JOIN staging.stg_rosters r
+                ON gs.player_id = r.player_id
+                AND gs.season_id = r.season_id
+                AND gs.league_id = r.league_id
+
+            LEFT JOIN staging.stg_teams t
+                ON r.team_id = t.team_id
+                AND r.season_id = t.season_id
+                AND r.league_id = t.league_id
+
+            ORDER BY gs.season_id DESC, gs.league_id ASC
+        """)
+
+        goalie_result = await session.execute(goalie_query, {"player_id": player_id})
+        goalie_rows = goalie_result.fetchall()
+
+        for row in goalie_rows:
+            seasons.append(
+                PlayerSeasonStats(
+                    season_id=row.season_id,
+                    league_id=int(row.league_id),
+                    league_name=LEAGUE_NAMES.get(int(row.league_id)),
+                    game_type_id=row.game_type_id,
+                    pos_group=row.pos_group,
+                    team_id=row.team_id,
+                    team_name=row.team_name,
+                    contract=row.contract,
+                    games_played=row.games_played,
+                    wins=row.wins,
+                    losses=row.losses,
+                    ot_losses=row.ot_losses,
+                    toi=float(row.toi) if row.toi else None,
+                    # Goalie-specific stats
+                    shots_against=int(row.shots_against) if row.shots_against else None,
+                    saves=int(row.saves) if row.saves else None,
+                    goals_against=int(row.goals_against) if row.goals_against else None,
+                    save_pct=float(row.save_pct) if row.save_pct else None,
+                    gaa=float(row.gaa) if row.gaa else None,
+                    shutouts=int(row.shutouts) if row.shutouts else None,
+                    gsax=float(row.gsax) if row.gsax else None,
+                    gsaa=float(row.gsaa) if row.gsaa else None,
+                    # Goalie percentiles
+                    save_pct_percentile=float(row.save_pct_percentile) if row.save_pct_percentile else None,
+                    gaa_percentile=float(row.gaa_percentile) if row.gaa_percentile else None,
+                    gsax_percentile=float(row.gsax_percentile) if row.gsax_percentile else None,
+                    teammate_rating=float(row.teammate_rating) if row.teammate_rating else None,
+                    opponent_rating=float(row.opponent_rating) if row.opponent_rating else None,
+                )
+            )
+    else:
+        # Query skater stats
+        skater_query = text("""
+            WITH player_seasons AS (
+                SELECT DISTINCT
+                    stats.season_id,
+                    stats.league_id,
+                    stats.game_type_id,
+                    stats.player_id,
+                    stats.pos_group
+                FROM agg.agg_player_season_stats stats
+                WHERE stats.player_id = :player_id
+                  AND stats.game_type_id = 1
+                  AND stats.league_id IN (37, 38, 39, 84, 112)
+            )
+            SELECT
+                ps.season_id,
+                ps.league_id,
+                ps.game_type_id,
+                ps.pos_group,
+
+                -- Team info from rosters
+                r.team_id,
+                t.team_name,
+                r.contract,
+
+                -- Basic stats from agg schema
+                stats.gp as games_played,
+                stats.win as wins,
+                stats.loss as losses,
+                stats.otl as ot_losses,
+                stats.points,
+                stats.goals,
+                stats.assists,
+                stats.plus_minus,
+                stats.toi,
+                stats.shots,
+                stats.hits,
+                stats.blocks,
+                stats.takeaways,
+                stats.interceptions,
+                stats.giveaways,
+                stats.pim,
+
+                -- GAR metrics
+                gar.expected_goals,
+                gar.expected_assists,
+                gar.goals_above_expected,
+                gar.assists_above_expected,
+                gar.offensive_gar,
+                gar.defensive_gar,
+                gar.total_gar,
+                gar.gar_per_60_percentile as war_percentile,
+                gar.off_per_60_percentile as offense_percentile,
+                gar.def_per_60_percentile as defense_percentile,
+
+                -- SOS metrics
+                sos.teammate_rating,
+                sos.opponent_rating
+
+            FROM player_seasons ps
+
+            LEFT JOIN agg.agg_player_season_stats stats
+                ON ps.player_id = stats.player_id
+                AND ps.season_id = stats.season_id
+                AND ps.league_id = stats.league_id
+                AND ps.game_type_id = stats.game_type_id
+                AND ps.pos_group = stats.pos_group
+
+            LEFT JOIN gar.gar_player_season gar
+                ON ps.player_id = gar.player_id
+                AND ps.season_id = gar.season_id
+                AND ps.league_id = gar.league_id
+                AND ps.game_type_id = gar.game_type_id
+                AND ps.pos_group = gar.pos_group
+
+            LEFT JOIN sos.sos_player_season sos
+                ON ps.player_id = sos.player_id
+                AND ps.season_id = sos.season_id
+                AND ps.league_id = sos.league_id
+                AND ps.game_type_id = sos.game_type_id
+                AND ps.pos_group = sos.pos_group
+
+            LEFT JOIN staging.stg_rosters r
+                ON ps.player_id = r.player_id
+                AND ps.season_id = r.season_id
+                AND ps.league_id = r.league_id
+
+            LEFT JOIN staging.stg_teams t
+                ON r.team_id = t.team_id
+                AND r.season_id = t.season_id
+                AND r.league_id = t.league_id
+
+            ORDER BY ps.season_id DESC, ps.league_id ASC
+        """)
+
+        skater_result = await session.execute(skater_query, {"player_id": player_id})
+        skater_rows = skater_result.fetchall()
+
+        for row in skater_rows:
+            seasons.append(
+                PlayerSeasonStats(
+                    season_id=row.season_id,
+                    league_id=int(row.league_id),
+                    league_name=LEAGUE_NAMES.get(int(row.league_id)),
+                    game_type_id=row.game_type_id,
+                    pos_group=row.pos_group,
+                    team_id=row.team_id,
+                    team_name=row.team_name,
+                    contract=row.contract,
+                    games_played=row.games_played,
+                    wins=row.wins,
+                    losses=row.losses,
+                    ot_losses=row.ot_losses,
+                    points=row.points,
+                    goals=row.goals,
+                    assists=row.assists,
+                    plus_minus=row.plus_minus,
+                    toi=float(row.toi) if row.toi else None,
+                    shots=row.shots,
+                    hits=row.hits,
+                    blocks=row.blocks,
+                    takeaways=row.takeaways,
+                    interceptions=row.interceptions,
+                    giveaways=row.giveaways,
+                    pim=row.pim,
+                    expected_goals=float(row.expected_goals) if row.expected_goals else None,
+                    expected_assists=float(row.expected_assists) if row.expected_assists else None,
+                    goals_above_expected=float(row.goals_above_expected) if row.goals_above_expected else None,
+                    assists_above_expected=float(row.assists_above_expected) if row.assists_above_expected else None,
+                    offensive_gar=float(row.offensive_gar) if row.offensive_gar else None,
+                    defensive_gar=float(row.defensive_gar) if row.defensive_gar else None,
+                    total_gar=float(row.total_gar) if row.total_gar else None,
+                    war_percentile=float(row.war_percentile) if row.war_percentile else None,
+                    offense_percentile=float(row.offense_percentile) if row.offense_percentile else None,
+                    defense_percentile=float(row.defense_percentile) if row.defense_percentile else None,
+                    teammate_rating=float(row.teammate_rating) if row.teammate_rating else None,
+                    opponent_rating=float(row.opponent_rating) if row.opponent_rating else None,
+                )
+            )
 
     return BiddingPackagePlayerDetail(
         player=player_info,
