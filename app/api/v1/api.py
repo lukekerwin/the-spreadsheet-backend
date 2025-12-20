@@ -97,11 +97,12 @@ api_v1_router.include_router(
     prefix="/auth/google",
     tags=["auth"],
 )
-api_v1_router.include_router(
-    fastapi_users.get_oauth_associate_router(google_oauth_client, UserRead, settings.SECRET_KEY),
-    prefix="/auth/google",
-    tags=["auth"],
-)
+# NOTE: Associate router temporarily disabled to debug callback conflict
+# api_v1_router.include_router(
+#     fastapi_users.get_oauth_associate_router(google_oauth_client, UserRead, settings.SECRET_KEY),
+#     prefix="/auth/google",
+#     tags=["auth"],
+# )
 
 # Custom routers
 api_v1_router.include_router(api_keys.router, prefix="/api-keys", tags=["API Keys"])
