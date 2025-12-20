@@ -1,18 +1,11 @@
 """API v1 router configuration."""
 
 import os
-import logging
-from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter
 from app.core.users import fastapi_users
 from app.core.security import auth_backend
 from app.core.oauth import google_oauth_client
 from app.core.config import settings
-
-# Debug: Log the SECRET_KEY being used for OAuth router
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.info(f"[OAuth Router] SECRET_KEY at router config: {settings.SECRET_KEY[:8]}...")
 from app.api.v1.endpoints import (
     players,
     goalies,
@@ -57,54 +50,6 @@ api_v1_router.include_router(
 # In production, use the FRONTEND_URL env var, in development use localhost
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 OAUTH_REDIRECT_URL = f"{FRONTEND_URL}/auth/callback/google"
-
-# Debug endpoint to test state token decoding
-@api_v1_router.get("/auth/debug-state")
-async def debug_state(state: str):
-    """Debug endpoint to test state token decoding."""
-    import jwt
-    from fastapi_users.jwt import decode_jwt
-
-    logger.info(f"[Debug] Attempting to decode state: {state[:50]}...")
-    logger.info(f"[Debug] Using SECRET_KEY: {settings.SECRET_KEY[:8]}...")
-
-    try:
-        decoded = decode_jwt(state, settings.SECRET_KEY, ["fastapi-users:oauth-state"])
-        logger.info(f"[Debug] Decode SUCCESS: {decoded}")
-        return {"status": "success", "decoded": decoded}
-    except jwt.ExpiredSignatureError as e:
-        logger.error(f"[Debug] Token EXPIRED: {e}")
-        return {"status": "expired", "error": str(e)}
-    except jwt.InvalidSignatureError as e:
-        logger.error(f"[Debug] INVALID SIGNATURE: {e}")
-        return {"status": "invalid_signature", "error": str(e)}
-    except jwt.DecodeError as e:
-        logger.error(f"[Debug] Decode ERROR: {e}")
-        return {"status": "decode_error", "error": str(e)}
-    except Exception as e:
-        logger.error(f"[Debug] Unknown ERROR: {type(e).__name__}: {e}")
-        return {"status": "error", "error": f"{type(e).__name__}: {e}"}
-
-# Custom OAuth callback that logs everything
-@api_v1_router.get("/auth/google/callback-debug")
-async def google_callback_debug(
-    request: Request,
-    code: str = None,
-    state: str = None,
-    error: str = None,
-):
-    """Debug callback to see all parameters."""
-    logger.info(f"[Callback Debug] code: {code[:20] if code else None}...")
-    logger.info(f"[Callback Debug] state: {state[:50] if state else None}...")
-    logger.info(f"[Callback Debug] error param: {error}")
-    logger.info(f"[Callback Debug] All query params: {dict(request.query_params)}")
-
-    return {
-        "code": code[:20] + "..." if code else None,
-        "state": state[:50] + "..." if state else None,
-        "error": error,
-        "all_params": dict(request.query_params)
-    }
 
 api_v1_router.include_router(
     fastapi_users.get_oauth_router(

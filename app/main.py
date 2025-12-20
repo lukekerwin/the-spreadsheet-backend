@@ -21,8 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Log startup info
-logger.info(f"Starting application with SECRET_KEY: {settings.SECRET_KEY[:8]}...")
-logger.info(f"ENVIRONMENT: {settings.ENVIRONMENT}")
+logger.info(f"Starting application in {settings.ENVIRONMENT} environment")
 
 # ============================================
 # APPLICATION FACTORY
