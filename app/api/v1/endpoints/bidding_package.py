@@ -64,13 +64,13 @@ ALLOWED_LEAGUE_IDS = [37, 38, 39, 84, 112]  # LGHL, LGAHL, LGCHL, LGECHL, LGNCAA
 @router.get("/data", response_model=Pagination[BiddingPackageData])
 async def get_bidding_package_data(
     search: str | None = None,
-    position: str | None = None,
+    positions: str | None = None,
     pos_group: str | None = None,
-    server: str | None = None,
-    console: str | None = None,
+    servers: str | None = None,
+    consoles: str | None = None,
     show_rostered: bool = True,
-    last_season_id: int | None = None,
-    last_league_id: int | None = None,
+    last_season_ids: str | None = None,
+    last_league_ids: str | None = None,
     signup_ids: str | None = None,
     page_number: int = 1,
     page_size: int = 50,
@@ -86,12 +86,13 @@ async def get_bidding_package_data(
 
     Args:
         search: Search player names (case-insensitive partial match)
+        positions: Comma-separated positions to filter by (LW, C, RW, LD, RD, G)
         pos_group: Filter by position group (F, D, G, C, W)
-        server: Filter by server (East, Central, West)
-        console: Filter by console (PS5, Xbox Series X|S)
+        servers: Comma-separated servers to filter by (East, Central, West)
+        consoles: Comma-separated consoles to filter by (PS5, Xbox Series X|S)
         show_rostered: Include players already on rosters (default True)
-        last_season_id: Filter by last season played
-        last_league_id: Filter by last league played (37=LGHL, 38=LGAHL, etc.)
+        last_season_ids: Comma-separated season IDs to filter by
+        last_league_ids: Comma-separated league IDs to filter by (37=LGHL, 38=LGAHL, etc.)
         signup_ids: Comma-separated list of signup IDs to filter by (for favorites)
         page_number: Page number (default 1)
         page_size: Items per page (default 50, max 200)
@@ -126,14 +127,18 @@ async def get_bidding_package_data(
         where_clauses.append("LOWER(player_name) LIKE LOWER(:search)")
         params["search"] = f"%{search.strip()}%"
 
-    if position is not None:
-        if position not in ALLOWED_POSITIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid position. Must be one of: {', '.join(ALLOWED_POSITIONS)}",
-            )
-        where_clauses.append("position = :position")
-        params["position"] = position
+    if positions is not None and positions.strip():
+        position_list = [p.strip() for p in positions.split(",") if p.strip()]
+        if position_list:
+            # Validate each position
+            for pos in position_list:
+                if pos not in ALLOWED_POSITIONS:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid position '{pos}'. Must be one of: {', '.join(ALLOWED_POSITIONS)}",
+                    )
+            where_clauses.append("position = ANY(:position_list)")
+            params["position_list"] = position_list
 
     if pos_group is not None:
         if pos_group not in ALLOWED_POS_GROUPS:
@@ -144,39 +149,50 @@ async def get_bidding_package_data(
         where_clauses.append("pos_group = :pos_group")
         params["pos_group"] = pos_group
 
-    if server is not None:
-        if server not in ALLOWED_SERVERS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid server. Must be one of: {', '.join(ALLOWED_SERVERS)}",
-            )
-        where_clauses.append("server = :server")
-        params["server"] = server
+    if servers is not None and servers.strip():
+        server_list = [s.strip() for s in servers.split(",") if s.strip()]
+        if server_list:
+            for srv in server_list:
+                if srv not in ALLOWED_SERVERS:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid server '{srv}'. Must be one of: {', '.join(ALLOWED_SERVERS)}",
+                    )
+            where_clauses.append("server = ANY(:server_list)")
+            params["server_list"] = server_list
 
-    if console is not None:
-        if console not in ALLOWED_CONSOLES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid console. Must be one of: {', '.join(ALLOWED_CONSOLES)}",
-            )
-        where_clauses.append("console = :console")
-        params["console"] = console
+    if consoles is not None and consoles.strip():
+        console_list = [c.strip() for c in consoles.split(",") if c.strip()]
+        if console_list:
+            for con in console_list:
+                if con not in ALLOWED_CONSOLES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid console '{con}'. Must be one of: {', '.join(ALLOWED_CONSOLES)}",
+                    )
+            where_clauses.append("console = ANY(:console_list)")
+            params["console_list"] = console_list
 
     if not show_rostered:
         where_clauses.append("is_rostered = false")
 
-    if last_season_id is not None:
-        where_clauses.append("last_season_id = :last_season_id")
-        params["last_season_id"] = last_season_id
+    if last_season_ids is not None and last_season_ids.strip():
+        season_id_list = [int(s.strip()) for s in last_season_ids.split(",") if s.strip()]
+        if season_id_list:
+            where_clauses.append("last_season_id = ANY(:season_id_list)")
+            params["season_id_list"] = season_id_list
 
-    if last_league_id is not None:
-        if last_league_id not in ALLOWED_LEAGUE_IDS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid last_league_id. Must be one of: {', '.join(map(str, ALLOWED_LEAGUE_IDS))}",
-            )
-        where_clauses.append("last_league_id = :last_league_id")
-        params["last_league_id"] = last_league_id
+    if last_league_ids is not None and last_league_ids.strip():
+        league_id_list = [int(l.strip()) for l in last_league_ids.split(",") if l.strip()]
+        if league_id_list:
+            for lid in league_id_list:
+                if lid not in ALLOWED_LEAGUE_IDS:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid league_id '{lid}'. Must be one of: {', '.join(map(str, ALLOWED_LEAGUE_IDS))}",
+                    )
+            where_clauses.append("last_league_id = ANY(:league_id_list)")
+            params["league_id_list"] = league_id_list
 
     if signup_ids is not None and signup_ids.strip():
         # Parse comma-separated signup IDs
