@@ -71,6 +71,7 @@ async def get_bidding_package_data(
     show_rostered: bool = True,
     last_season_id: int | None = None,
     last_league_id: int | None = None,
+    signup_ids: str | None = None,
     page_number: int = 1,
     page_size: int = 50,
     sort_by: str = "war_percentile",
@@ -91,6 +92,7 @@ async def get_bidding_package_data(
         show_rostered: Include players already on rosters (default True)
         last_season_id: Filter by last season played
         last_league_id: Filter by last league played (37=LGHL, 38=LGAHL, etc.)
+        signup_ids: Comma-separated list of signup IDs to filter by (for favorites)
         page_number: Page number (default 1)
         page_size: Items per page (default 50, max 200)
         sort_by: Column to sort by (default: war_percentile)
@@ -175,6 +177,14 @@ async def get_bidding_package_data(
             )
         where_clauses.append("last_league_id = :last_league_id")
         params["last_league_id"] = last_league_id
+
+    if signup_ids is not None and signup_ids.strip():
+        # Parse comma-separated signup IDs
+        signup_id_list = [s.strip() for s in signup_ids.split(",") if s.strip()]
+        if signup_id_list:
+            # Use ANY for array comparison
+            where_clauses.append("signup_id = ANY(:signup_id_list)")
+            params["signup_id_list"] = signup_id_list
 
     # Build WHERE string
     where_str = " AND ".join(where_clauses) if where_clauses else "1=1"
