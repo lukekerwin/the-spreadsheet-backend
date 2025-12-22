@@ -1,0 +1,37 @@
+name: Refresh Free Tier Data
+
+on:
+  schedule:
+    # Every Tuesday at 11:30 PM Eastern Time
+    # Note: GitHub Actions uses UTC, so we need to account for timezone
+    # ET is UTC-5 (EST) or UTC-4 (EDT)
+    # 11:30 PM EST = 04:30 UTC (next day)
+    # 11:30 PM EDT = 03:30 UTC (next day)
+    # Using 04:30 UTC to cover EST (winter time)
+    - cron: '30 4 * * 3'  # 4:30 AM UTC on Wednesday = 11:30 PM EST Tuesday
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  refresh-free-tier:
+    runs-on: self-hosted  # Uses your AWS EC2 runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Refresh free tier data
+        env:
+          DB_HOST_PROD: ${{ secrets.DB_HOST_PROD }}
+          DB_PORT_PROD: ${{ secrets.DB_PORT_PROD }}
+          DB_USER_PROD: ${{ secrets.DB_USER_PROD }}
+          DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
+          DB_NAME_PROD: ${{ secrets.DB_NAME_PROD }}
+        run: |
+          chmod +x scripts/refresh_free_tier_data.sh
+          ./scripts/refresh_free_tier_data.sh --prod
+
+      - name: Log completion
+        run: |
+          echo "Free tier data refresh completed at $(date)"
