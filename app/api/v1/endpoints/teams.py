@@ -147,6 +147,7 @@ async def get_team_cards_search(
     league_id: int,
     game_type_id: int,
     session: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
 ):
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=53):
@@ -156,14 +157,17 @@ async def get_team_cards_search(
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
+    # Get the appropriate model based on user tier (premium vs free)
+    Model = get_team_card_model(user)
+
     # Build the base filter query
     filters = [
-        TeamCard.season_id == season_id,
-        TeamCard.league_id == league_id,
-        TeamCard.game_type_id == game_type_id,
+        Model.season_id == season_id,
+        Model.league_id == league_id,
+        Model.game_type_id == game_type_id,
     ]
 
-    statement = select(TeamCard).where(*filters).order_by(TeamCard.team_full_name.asc())
+    statement = select(Model).where(*filters).order_by(Model.team_full_name.asc())
 
     result = await session.execute(statement)
     teams = result.scalars().all()
