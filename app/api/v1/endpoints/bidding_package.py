@@ -38,7 +38,7 @@ SORTABLE_COLUMNS = [
     "status",
     "server",
     "console",
-    "is_rostered",
+    "signup_timestamp",
     "last_season_id",
     "last_league_name",
     "games_played",
