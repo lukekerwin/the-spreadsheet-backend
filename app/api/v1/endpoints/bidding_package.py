@@ -205,10 +205,16 @@ async def get_bidding_package_data(
     # Build WHERE string
     where_str = " AND ".join(where_clauses) if where_clauses else "1=1"
 
-    # Get total count
-    count_query = text(f"SELECT COUNT(*) FROM api.bidding_package WHERE {where_str}")
+    # Get total count and latest signup timestamp
+    count_query = text(f"""
+        SELECT COUNT(*), MAX(signup_timestamp)
+        FROM api.bidding_package
+        WHERE {where_str}
+    """)
     count_result = await session.execute(count_query, params)
-    total = count_result.scalar() or 0
+    count_row = count_result.fetchone()
+    total = count_row[0] or 0
+    latest_signup = count_row[1]
 
     # Build ORDER BY with NULL handling
     null_order = "NULLS LAST" if sort_order == "desc" else "NULLS FIRST"
@@ -290,13 +296,19 @@ async def get_bidding_package_data(
     # Calculate pagination metadata
     total_pages = (total + page_size - 1) // page_size if total > 0 else 0
 
+    # Format last updated timestamp
+    if latest_signup:
+        last_updated = latest_signup.strftime("%b %d, %Y %I:%M %p")
+    else:
+        last_updated = "N/A"
+
     return Pagination(
         data=data,
         page=page_number,
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated="N/A",  # View doesn't track last_updated
+        last_updated=last_updated,
     )
 
 
