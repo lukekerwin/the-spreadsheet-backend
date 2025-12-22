@@ -13,6 +13,7 @@ from app.models.playoff_odds import PlayoffOdds
 from app.schemas.playoff_odds import PlayoffOddsResponse
 from app.core.auth import require_auth
 from app.models.users import User
+from app.util.tier_routing import get_playoff_odds_model
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ async def get_playoff_odds(
     season_id: int = Query(..., description="Season ID (e.g., 52)"),
     league_id: int = Query(..., description="League ID (e.g., 37 for NHL)"),
     session: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    user: User = Depends(require_auth),
 ):
     """
     Get playoff odds for all teams in a league.
@@ -43,12 +44,15 @@ async def get_playoff_odds(
     Returns:
         List of playoff odds for each team, sorted by playoff probability descending
     """
+    # Get the appropriate model based on user tier (premium vs free)
+    Model = get_playoff_odds_model(user)
+
     # Query playoff odds
     statement = (
-        select(PlayoffOdds)
-        .where(PlayoffOdds.season_id == season_id)
-        .where(PlayoffOdds.league_id == league_id)
-        .order_by(PlayoffOdds.playoff_odds.desc())
+        select(Model)
+        .where(Model.season_id == season_id)
+        .where(Model.league_id == league_id)
+        .order_by(Model.playoff_odds.desc())
     )
 
     result = await session.execute(statement)
@@ -70,7 +74,7 @@ async def get_team_playoff_odds(
     season_id: int = Query(..., description="Season ID (e.g., 52)"),
     league_id: int = Query(..., description="League ID (e.g., 37 for NHL)"),
     session: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    user: User = Depends(require_auth),
 ):
     """
     Get playoff odds for a specific team.
@@ -85,11 +89,14 @@ async def get_team_playoff_odds(
     Returns:
         Playoff odds for the specified team
     """
+    # Get the appropriate model based on user tier (premium vs free)
+    Model = get_playoff_odds_model(user)
+
     statement = (
-        select(PlayoffOdds)
-        .where(PlayoffOdds.season_id == season_id)
-        .where(PlayoffOdds.league_id == league_id)
-        .where(PlayoffOdds.team_id == team_id)
+        select(Model)
+        .where(Model.season_id == season_id)
+        .where(Model.league_id == league_id)
+        .where(Model.team_id == team_id)
     )
 
     result = await session.execute(statement)

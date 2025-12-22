@@ -16,6 +16,7 @@ from app.schemas.card import CardData, CardHeader, CardBanner
 from app.schemas.common import Item, Pagination
 from app.core.auth import require_auth
 from app.util.helpers import validate_param, get_count
+from app.util.tier_routing import get_player_card_model
 
 # ============================================
 # ROUTER CONFIGURATION
@@ -40,7 +41,7 @@ async def get_player_cards(
     page_number: int = 1,
     page_size: int = 24,
     session: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    user: User = Depends(require_auth),
 ):
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=53):
@@ -52,12 +53,15 @@ async def get_player_cards(
     if not validate_param("pos_group", pos_group, allowed_values=["C", "W", "D"]):
         raise HTTPException(status_code=400, detail="Invalid pos_group")
 
+    # Get the appropriate model based on user tier (premium vs free)
+    Model = get_player_card_model(user)
+
     # Build the base filter query
     filters = [
-        PlayerCard.season_id == season_id,
-        PlayerCard.league_id == league_id,
-        PlayerCard.game_type_id == game_type_id,
-        PlayerCard.pos_group == pos_group
+        Model.season_id == season_id,
+        Model.league_id == league_id,
+        Model.game_type_id == game_type_id,
+        Model.pos_group == pos_group
     ]
 
     # Optional player filter (supports both single and multiple player IDs)
@@ -72,20 +76,20 @@ async def get_player_cards(
                     raise HTTPException(status_code=400, detail=f"Invalid player_id: {pid}")
             # Apply IN filter for multiple players
             if id_list:
-                filters.append(PlayerCard.player_id.in_(id_list))
+                filters.append(Model.player_id.in_(id_list))
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid player_ids format (must be comma-separated integers)")
     elif player_id is not None:
         # Backward compatibility: support single player_id parameter
         if not validate_param("player_id", player_id, gt=0):
             raise HTTPException(status_code=400, detail="Invalid player_id")
-        filters.append(PlayerCard.player_id == player_id)
+        filters.append(Model.player_id == player_id)
 
     if not validate_param("page_number", page_number, gt=0):
         raise HTTPException(status_code=400, detail="Invalid page_number")
 
-    total = await get_count(session, PlayerCard, filters)
-    statement = select(PlayerCard).where(*filters).offset((page_number-1)*page_size).limit(page_size)
+    total = await get_count(session, Model, filters)
+    statement = select(Model).where(*filters).offset((page_number-1)*page_size).limit(page_size)
 
     result = await session.execute(statement)
     players = result.scalars().all()

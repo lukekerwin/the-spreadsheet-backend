@@ -17,6 +17,7 @@ from app.schemas.common import Item, Pagination
 from app.schemas.team_sos import TeamSOSData
 from app.core.auth import require_auth
 from app.util.helpers import validate_param, get_count
+from app.util.tier_routing import get_team_card_model
 
 # ============================================
 # ROUTER CONFIGURATION
@@ -39,7 +40,7 @@ async def get_team_cards(
     page_number: int = 1,
     page_size: int = 24,
     session: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    user: User = Depends(require_auth),
 ):
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=53):
@@ -49,23 +50,26 @@ async def get_team_cards(
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
+    # Get the appropriate model based on user tier (premium vs free)
+    Model = get_team_card_model(user)
+
     # Build the base filter query
     filters = [
-        TeamCard.season_id == season_id,
-        TeamCard.league_id == league_id,
-        TeamCard.game_type_id == game_type_id
+        Model.season_id == season_id,
+        Model.league_id == league_id,
+        Model.game_type_id == game_type_id
     ]
 
     if team_id is not None:
         if not validate_param("team_id", team_id, gt=0):
             raise HTTPException(status_code=400, detail="Invalid team_id")
-        filters.append(TeamCard.team_id == team_id)
+        filters.append(Model.team_id == team_id)
 
     if not validate_param("page_number", page_number, gt=0):
         raise HTTPException(status_code=400, detail="Invalid page_number")
 
-    total = await get_count(session, TeamCard, filters)
-    statement = select(TeamCard).where(*filters).offset((page_number-1)*page_size).limit(page_size)
+    total = await get_count(session, Model, filters)
+    statement = select(Model).where(*filters).offset((page_number-1)*page_size).limit(page_size)
 
     result = await session.execute(statement)
     teams = result.scalars().all()

@@ -17,6 +17,7 @@ from app.schemas.search import SearchResult, SearchResultItem
 from app.schemas.common import Pagination
 from app.core.auth import require_auth
 from app.util.helpers import validate_param, get_count
+from app.util.tier_routing import get_player_stats_model
 
 # ============================================
 # ROUTER CONFIGURATION
@@ -56,7 +57,7 @@ async def get_player_stats(
     sort_by: str | None = None,
     sort_order: str = "desc",
     session: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    user: User = Depends(require_auth),
 ):
     """
     Get paginated player statistics with filtering and sorting.
@@ -98,12 +99,15 @@ async def get_player_stats(
     if sort_order not in ["asc", "desc"]:
         raise HTTPException(status_code=400, detail="Invalid sort_order (must be 'asc' or 'desc')")
 
+    # Get the appropriate model based on user tier (premium vs free)
+    Model = get_player_stats_model(user)
+
     # Build filters
     filters = [
-        PlayerStatsPage.season_id == season_id,
-        PlayerStatsPage.league_id == league_id,
-        PlayerStatsPage.game_type_id == game_type_id,
-        PlayerStatsPage.pos_group == pos_group,
+        Model.season_id == season_id,
+        Model.league_id == league_id,
+        Model.game_type_id == game_type_id,
+        Model.pos_group == pos_group,
     ]
 
     # Optional player filter (supports both single and multiple player IDs)
@@ -118,35 +122,35 @@ async def get_player_stats(
                     raise HTTPException(status_code=400, detail=f"Invalid player_id: {pid}")
             # Apply IN filter for multiple players
             if id_list:
-                filters.append(PlayerStatsPage.player_id.in_(id_list))
+                filters.append(Model.player_id.in_(id_list))
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid player_ids format (must be comma-separated integers)")
     elif player_id is not None:
         # Backward compatibility: support single player_id parameter
         if not validate_param("player_id", player_id, gt=0):
             raise HTTPException(status_code=400, detail="Invalid player_id")
-        filters.append(PlayerStatsPage.player_id == player_id)
+        filters.append(Model.player_id == player_id)
 
     # Optional team_name filter
     if team_name is not None and team_name != "":
-        filters.append(PlayerStatsPage.team_name == team_name)
+        filters.append(Model.team_name == team_name)
 
     # Get total count
-    total = await get_count(session, PlayerStatsPage, filters)
+    total = await get_count(session, Model, filters)
 
     # Build query with filtering
-    statement = select(PlayerStatsPage).where(*filters)
+    statement = select(Model).where(*filters)
 
     # Add sorting if specified
     if sort_by is not None:
-        sort_column = getattr(PlayerStatsPage, sort_by)
+        sort_column = getattr(Model, sort_by)
         if sort_order == "asc":
             statement = statement.order_by(sort_column.asc().nulls_last())
         else:
             statement = statement.order_by(sort_column.desc().nulls_last())
     else:
         # Default sort by overall rating descending
-        statement = statement.order_by(PlayerStatsPage.overall_rating.desc().nulls_last())
+        statement = statement.order_by(Model.overall_rating.desc().nulls_last())
 
     # Add pagination
     statement = statement.offset((page_number - 1) * page_size).limit(page_size)
