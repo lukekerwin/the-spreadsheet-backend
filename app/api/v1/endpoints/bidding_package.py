@@ -54,6 +54,7 @@ ALLOWED_POS_GROUPS = ["F", "D", "G", "C", "W"]
 ALLOWED_POSITIONS = ["LW", "C", "RW", "LD", "RD", "G"]
 ALLOWED_SERVERS = ["East", "Central", "West"]
 ALLOWED_CONSOLES = ["PS5", "Xbox Series X|S"]
+ALLOWED_STATUSES = ["Veteran", "Prospect", "Amateur", "Draft Pick"]
 ALLOWED_LEAGUE_IDS = [37, 38, 39, 84, 112]  # LGHL, LGAHL, LGCHL, LGECHL, LGNCAA
 
 # ============================================
@@ -68,6 +69,7 @@ async def get_bidding_package_data(
     pos_group: str | None = None,
     servers: str | None = None,
     consoles: str | None = None,
+    statuses: str | None = None,
     show_rostered: bool = True,
     last_season_ids: str | None = None,
     last_league_ids: str | None = None,
@@ -90,6 +92,7 @@ async def get_bidding_package_data(
         pos_group: Filter by position group (F, D, G, C, W)
         servers: Comma-separated servers to filter by (East, Central, West)
         consoles: Comma-separated consoles to filter by (PS5, Xbox Series X|S)
+        statuses: Comma-separated statuses to filter by (Veteran, Prospect, Amateur, Draft Pick)
         show_rostered: Include players already on rosters (default True)
         last_season_ids: Comma-separated season IDs to filter by
         last_league_ids: Comma-separated league IDs to filter by (37=LGHL, 38=LGAHL, etc.)
@@ -172,6 +175,18 @@ async def get_bidding_package_data(
                     )
             where_clauses.append("console = ANY(:console_list)")
             params["console_list"] = console_list
+
+    if statuses is not None and statuses.strip():
+        status_list = [s.strip() for s in statuses.split(",") if s.strip()]
+        if status_list:
+            for stat in status_list:
+                if stat not in ALLOWED_STATUSES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid status '{stat}'. Must be one of: {', '.join(ALLOWED_STATUSES)}",
+                    )
+            where_clauses.append("status = ANY(:status_list)")
+            params["status_list"] = status_list
 
     if not show_rostered:
         where_clauses.append("is_rostered = false")
