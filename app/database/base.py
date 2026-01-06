@@ -13,3 +13,9 @@ from app.models.free_tier import (  # noqa
     GoalieStatsPageFree,
     PlayoffOddsFree,
 )
+from app.models.subscriptions import (  # noqa
+    Plan,
+    Subscription,
+    Purchase,
+    PaymentHistory,
+)

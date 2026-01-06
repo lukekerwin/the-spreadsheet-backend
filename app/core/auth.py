@@ -123,6 +123,9 @@ async def get_bidding_package_user(
     First authenticates the user, then verifies they own the bidding package.
     Use this dependency for bidding-package-only endpoints.
 
+    Checks both the new purchases table and legacy has_bidding_package field
+    for backward compatibility during migration.
+
     Args:
         user: Authenticated user from get_current_user_flexible
 
@@ -133,7 +136,8 @@ async def get_bidding_package_user(
         HTTPException: 401 if not authenticated
         HTTPException: 403 if authenticated but doesn't own bidding package
     """
-    if not user.has_bidding_package:
+    # Use the new property that checks both legacy field and new purchases table
+    if not user.has_bidding_package_access:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bidding Package purchase required to access this feature",
