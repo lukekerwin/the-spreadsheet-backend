@@ -192,7 +192,7 @@ class Purchase(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="purchases")
-    plan: Mapped["Plan"] = relationship(back_populates="purchases")
+    plan: Mapped["Plan"] = relationship(back_populates="purchases", lazy="selectin")
     payments: Mapped[list["PaymentHistory"]] = relationship(
         back_populates="purchase", lazy="selectin"
     )
