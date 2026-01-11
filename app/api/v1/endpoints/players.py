@@ -48,7 +48,7 @@ async def get_player_cards(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
     if not validate_param("pos_group", pos_group, allowed_values=["C", "W", "D"]):
         raise HTTPException(status_code=400, detail="Invalid pos_group")
@@ -180,7 +180,7 @@ async def get_player_cards_search(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
     if not validate_param("pos_group", pos_group, allowed_values=["C", "W", "D"]):
         raise HTTPException(status_code=400, detail="Invalid pos_group")

@@ -77,8 +77,8 @@ async def get_player_stats(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
-        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 2)")
 
     if not validate_param("pos_group", pos_group, allowed_values=["C", "W", "D"]):
         raise HTTPException(status_code=400, detail="Invalid pos_group (must be C, W, or D)")
@@ -243,8 +243,8 @@ async def get_player_stats_filters(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
-        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 2)")
 
     # Query for distinct team names
     statement = (
@@ -289,8 +289,8 @@ async def get_player_stats_names(
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
 
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
-        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 3)")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id (must be 1 or 2)")
 
     if not validate_param("pos_group", pos_group, allowed_values=["C", "W", "D"]):
         raise HTTPException(status_code=400, detail="Invalid pos_group (must be C, W, or D)")

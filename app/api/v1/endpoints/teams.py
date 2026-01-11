@@ -47,7 +47,7 @@ async def get_team_cards(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Get the appropriate model based on user tier (premium vs free)
@@ -154,7 +154,7 @@ async def get_team_cards_search(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Get the appropriate model based on user tier (premium vs free)
@@ -204,7 +204,7 @@ async def get_team_sos_filters(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Query for distinct week_ids and game_dow values
@@ -293,7 +293,7 @@ async def get_team_sos_data(
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
-    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 3]):
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
 
     # Build filters
