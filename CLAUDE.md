@@ -81,7 +81,7 @@ async def get_player_cards(
     _: User = Depends(require_auth),  # Auth required
 ):
     # 1. Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
+    if not validate_param("season_id", season_id, gt=45, lt=54):
         raise HTTPException(status_code=400, detail="Invalid season_id")
 
     # 2. Build query

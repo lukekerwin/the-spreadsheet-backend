@@ -43,7 +43,7 @@ async def get_team_cards(
     user: User = Depends(require_auth),
 ):
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
+    if not validate_param("season_id", season_id, gt=45, lt=54):
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
@@ -150,7 +150,7 @@ async def get_team_cards_search(
     user: User = Depends(require_auth),
 ):
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
+    if not validate_param("season_id", season_id, gt=45, lt=54):
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
@@ -200,7 +200,7 @@ async def get_team_sos_filters(
     Returns unique weeks and days of week available for the given season, league, and game type.
     """
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
+    if not validate_param("season_id", season_id, gt=45, lt=54):
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
@@ -289,7 +289,7 @@ async def get_team_sos_data(
     - game_dow: -1 for all days/weekly aggregate, 0-6 for specific day (0=Sunday)
     """
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
+    if not validate_param("season_id", season_id, gt=45, lt=54):
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")

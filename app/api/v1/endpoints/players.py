@@ -44,7 +44,7 @@ async def get_player_cards(
     user: User = Depends(require_auth),
 ):
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
+    if not validate_param("season_id", season_id, gt=45, lt=54):
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
@@ -176,7 +176,7 @@ async def get_player_cards_search(
     session: AsyncSession = Depends(get_db),
 ):
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
+    if not validate_param("season_id", season_id, gt=45, lt=54):
         raise HTTPException(status_code=400, detail="Invalid season_id")
     if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
