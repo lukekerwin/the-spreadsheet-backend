@@ -1,7 +1,7 @@
 """Public card endpoints - no authentication required.
 
 These endpoints return only the first page of data with default filters:
-- Season 52 (current season)
+- Season 53 (current season)
 - League 37 (NHL)
 - Game Type 1
 - Page 1, 24 items per page
@@ -23,7 +23,7 @@ from app.util.helpers import get_count
 router = APIRouter()
 
 # Public defaults
-DEFAULT_SEASON_ID = 52
+DEFAULT_SEASON_ID = 53
 DEFAULT_LEAGUE_ID = 37
 DEFAULT_GAME_TYPE_ID = 1
 DEFAULT_PAGE_NUMBER = 1
@@ -40,7 +40,7 @@ async def get_public_player_cards(
 ):
     """Get first page of player cards with default filters (no auth required).
 
-    Returns first 24 Center (C) position players from Season 52, NHL.
+    Returns first 24 Center (C) position players from Season 53, NHL.
 
     Args:
         session: Database session

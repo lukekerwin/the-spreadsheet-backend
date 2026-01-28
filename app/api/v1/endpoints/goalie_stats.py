@@ -44,8 +44,8 @@ async def get_goalie_stats(
         sort_order: Sort direction ('asc' or 'desc', defaults to 'desc')
     """
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
-        raise HTTPException(status_code=400, detail="Invalid season_id (must be 46-52)")
+    if not validate_param("season_id", season_id, gt=45, lt=54):
+        raise HTTPException(status_code=400, detail="Invalid season_id (must be 46-53)")
 
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
@@ -204,8 +204,8 @@ async def get_goalie_stats_filters(
     Protected endpoint requiring authentication.
     """
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
-        raise HTTPException(status_code=400, detail="Invalid season_id (must be 46-52)")
+    if not validate_param("season_id", season_id, gt=45, lt=54):
+        raise HTTPException(status_code=400, detail="Invalid season_id (must be 46-53)")
 
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
@@ -249,8 +249,8 @@ async def get_goalie_stats_names(
     Protected endpoint requiring authentication.
     """
     # Validate parameters
-    if not validate_param("season_id", season_id, gt=45, lt=53):
-        raise HTTPException(status_code=400, detail="Invalid season_id (must be 46-52)")
+    if not validate_param("season_id", season_id, gt=45, lt=54):
+        raise HTTPException(status_code=400, detail="Invalid season_id (must be 46-53)")
 
     if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
