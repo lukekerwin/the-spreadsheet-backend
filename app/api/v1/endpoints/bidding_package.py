@@ -48,6 +48,7 @@ SORTABLE_COLUMNS = [
     "war_percentile",
     "team_percentile",
     "sos_percentile",
+    "last_contract",
 ]
 
 ALLOWED_POS_GROUPS = ["F", "D", "G", "C", "W"]
@@ -266,7 +267,8 @@ async def get_bidding_package_data(
             points,
             war_percentile,
             team_percentile,
-            sos_percentile
+            sos_percentile,
+            last_contract
         FROM api.bidding_package
         WHERE {where_str}
         ORDER BY {order_str}
@@ -305,6 +307,7 @@ async def get_bidding_package_data(
                 war_percentile=row.war_percentile,
                 team_percentile=row.team_percentile,
                 sos_percentile=row.sos_percentile,
+                last_contract=row.last_contract,
             )
         )
 

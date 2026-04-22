@@ -38,3 +38,6 @@ class BiddingPackageData(BaseModel):
     war_percentile: float | None = None
     team_percentile: float | None = None
     sos_percentile: float | None = None
+
+    # Contract
+    last_contract: int | None = None
