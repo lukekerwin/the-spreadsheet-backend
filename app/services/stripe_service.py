@@ -5,6 +5,7 @@ This service handles all Stripe operations and implements dual-write mode:
 - Writes to new subscription/purchase tables (for new architecture)
 """
 
+import json
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -237,7 +238,8 @@ class StripeService:
 
         # Handle the event
         event_type = event["type"]
-        data = event["data"]["object"]
+        # Convert StripeObject to plain dict for consistent .get() access across stripe SDK versions
+        data = json.loads(str(event["data"]["object"]))
 
         if event_type == "checkout.session.completed":
             await StripeService._handle_checkout_completed(session, data)
