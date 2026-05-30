@@ -166,6 +166,7 @@ class GoalieLine(_Camel):
     shutouts: Optional[int] = None
     gsax: Optional[float] = None
     gsaa: Optional[float] = None
+    ovr: Optional[float] = None
 
 
 class GameDetailResponse(_Camel):

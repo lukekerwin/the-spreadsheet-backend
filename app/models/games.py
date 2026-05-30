@@ -155,3 +155,4 @@ class GameGoalieStats(Base):
     shutouts: Mapped[int | None] = mapped_column(Integer, nullable=True)
     gsax: Mapped[float | None] = mapped_column(Numeric, nullable=True)
     gsaa: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    ovr: Mapped[float | None] = mapped_column(Numeric, nullable=True)

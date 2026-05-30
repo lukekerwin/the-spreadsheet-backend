@@ -234,7 +234,7 @@ async def get_game_detail(
         return GoalieLine(
             player_id=g.player_id, player_name=g.player_name, team_id=g.team_id, toi=g.toi,
             shots_against=g.shots_against, saves=g.saves, goals_against=g.goals_against,
-            sv_pct=g.sv_pct, gaa=g.gaa, shutouts=g.shutouts, gsax=g.gsax, gsaa=g.gsaa,
+            sv_pct=g.sv_pct, gaa=g.gaa, shutouts=g.shutouts, gsax=g.gsax, gsaa=g.gsaa, ovr=g.ovr,
         )
 
     return GameDetailResponse(
