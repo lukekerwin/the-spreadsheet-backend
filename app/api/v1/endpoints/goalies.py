@@ -83,6 +83,8 @@ async def get_goalie_cards(
 
     if not validate_param("page_number", page_number, gt=0):
         raise HTTPException(status_code=400, detail="Invalid page_number")
+    if not validate_param("page_size", page_size, gt=0, lt=201):
+        raise HTTPException(status_code=400, detail="Invalid page_size (must be 1-200)")
 
     total = await get_count(session, Model, filters)
     statement = (

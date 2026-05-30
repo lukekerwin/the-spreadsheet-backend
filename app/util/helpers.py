@@ -46,8 +46,8 @@ def validate_param(param, value, allowed_values=[], gt=None, lt=None) -> bool:
     """
     if allowed_values and value not in allowed_values:
         return False
-    if gt and value <= gt:
+    if gt is not None and value <= gt:
         return False
-    if lt and value >= lt:
+    if lt is not None and value >= lt:
         return False
     return True
