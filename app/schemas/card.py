@@ -18,3 +18,5 @@ class CardData(BaseModel):
     ratings: list[Item]
     stats: list[Item]
     teamColor: str
+    weekId: int | None = None
+    entityId: int | None = None

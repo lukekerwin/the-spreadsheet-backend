@@ -114,7 +114,8 @@ async def get_public_player_cards(
             headerStats=header_stats,
             ratings=ratings,
             stats=stats,
-            teamColor=row.team_color or "#1e293b"
+            teamColor=row.team_color or "#1e293b",
+            entityId=row.player_id
         )
         cards.append(card)
 
@@ -209,7 +210,8 @@ async def get_public_goalie_cards(
             headerStats=header_stats,
             ratings=ratings,
             stats=stats,
-            teamColor=row.team_color or "#1e293b"
+            teamColor=row.team_color or "#1e293b",
+            entityId=row.player_id
         )
         cards.append(card)
 
@@ -299,7 +301,8 @@ async def get_public_team_cards(
             headerStats=header_stats,
             ratings=ratings,
             stats=stats,
-            teamColor=row.team_color or "#1e293b"
+            teamColor=row.team_color or "#1e293b",
+            entityId=row.team_id
         )
         cards.append(card)
 

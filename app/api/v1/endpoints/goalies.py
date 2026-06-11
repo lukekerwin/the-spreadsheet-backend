@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
-from app.models.goalies import GoalieCard
+from app.models.goalies import GoalieCard, GoalieWeekCard
 from app.models.users import User
 from app.schemas.card import CardData, CardHeader, CardBanner
 from app.schemas.search import SearchResult, SearchResultItem
@@ -145,9 +145,127 @@ async def get_goalie_cards(
             ratings=ratings,
             stats=stats,
             teamColor=row.team_color or "#1e293b",
+            entityId=row.player_id,
         )
         cards.append(card)
-    
+
+    total_pages = (total + page_size - 1) // page_size
+
+    # Get last_updated from the last row, or "N/A" if no results
+    last_updated_str = "N/A"
+    if goalies:
+        last_row = goalies[-1]
+        if last_row.last_updated:
+            last_updated_str = last_row.last_updated.strftime("%Y-%m-%d")
+
+    return Pagination(
+        data=cards,
+        page=page_number,
+        page_size=page_size,
+        total=total,
+        total_pages=total_pages,
+        last_updated=last_updated_str
+    )
+
+# ===============================================
+# GET /goalies/cards/weekly
+# ===============================================
+
+@router.get("/cards/weekly", response_model=Pagination[CardData])
+async def get_goalie_weekly_cards(
+    season_id: int,
+    league_id: int,
+    game_type_id: int,
+    player_id: int,
+    session: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Get one card per played week for a single goalie (no tier routing)."""
+    # Validate parameters
+    if not validate_param("season_id", season_id, gt=45, lt=55):
+        raise HTTPException(status_code=400, detail="Invalid season_id")
+    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+        raise HTTPException(status_code=400, detail="Invalid league_id")
+    if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
+        raise HTTPException(status_code=400, detail="Invalid game_type_id")
+    if not validate_param("player_id", player_id, gt=0):
+        raise HTTPException(status_code=400, detail="Invalid player_id")
+
+    page_number = 1
+    page_size = 100
+
+    # Weekly cards always come from the live week table (no tier routing)
+    filters = [
+        GoalieWeekCard.season_id == season_id,
+        GoalieWeekCard.league_id == league_id,
+        GoalieWeekCard.game_type_id == game_type_id,
+        GoalieWeekCard.player_id == player_id,
+    ]
+
+    total = await get_count(session, GoalieWeekCard, filters)
+    statement = (
+        select(GoalieWeekCard)
+        .where(*filters)
+        .order_by(GoalieWeekCard.week_id.asc())
+        .offset((page_number-1)*page_size)
+        .limit(page_size)
+    )
+
+    result = await session.execute(statement)
+    goalies = result.scalars().all()
+
+    cards = []
+    for row in goalies:
+        header = CardHeader(
+            title=str(row.player_name) if row.player_name else "N/A",
+            subtitle=[
+                Item(label="Position", value='G'),
+                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
+                Item(label="Contract", value=f"{float(int(row.contract)/1000000)}M" if row.contract else "N/A")
+            ]
+        )
+
+        banner = CardBanner(
+            overallPercentile=round(float(row.overall_percentile)*100) if row.overall_percentile != None else "N/A",
+            tier=str(row.tier) if row.tier else None,
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png" if row.team_name else None
+        )
+
+        header_stats = [
+            Item(label="SV%", value=round(float(row.save_pct),3) if row.save_pct else "N/A"),
+            Item(label="GAA", value=round(float(row.gaa), 2) if row.gaa is not None else "N/A"),
+        ]
+
+        ratings = [
+            Item(label="GSAX", value=round(float(row.gsax_percentile*100)) if row.gsax_percentile != None else "N/A"),
+            Item(label="SUPPORT", value=round(float(row.def_percentile*100)) if row.def_percentile != None else "N/A"),
+            Item(label="TEAMMATES", value=round(float(row.team_percentile*100)) if row.team_percentile != None else "N/A"),
+            Item(label="OPPONENTS", value=round(float(row.sos_percentile*100)) if row.sos_percentile != None else "N/A"),
+        ]
+
+        stats = [
+            Item(label="SH", value=int(row.shots_against) if row.shots_against else "N/A"),
+            Item(label="GA", value=int(row.goals_against) if row.goals_against else "N/A"),
+            Item(label="xGA", value=round(float(row.xga), 1) if row.xga is not None else "N/A"),
+            Item(label="GSAX", value=round(float(row.gsax), 1) if row.gsax else "N/A"),
+            Item(label="SH/60", value=round(float(row.shots_per_60), 1) if row.shots_per_60 is not None else "N/A"),
+            Item(label="GA/60", value=round(float(row.ga_per_60), 1) if row.ga_per_60 is not None else "N/A"),
+            Item(label="xGA/60", value=round(float(row.xga_per_60), 1) if row.xga_per_60 is not None else "N/A"),
+            Item(label="GSAX/60", value=round(float(row.gsax_per_60), 1) if row.gsax_per_60 is not None else "N/A"),
+        ]
+
+        card = CardData(
+            header=header,
+            banner=banner,
+            headerStats=header_stats,
+            ratings=ratings,
+            stats=stats,
+            teamColor=row.team_color or "#1e293b",
+            weekId=row.week_id,
+            entityId=row.player_id,
+        )
+        cards.append(card)
+
     total_pages = (total + page_size - 1) // page_size
 
     # Get last_updated from the last row, or "N/A" if no results

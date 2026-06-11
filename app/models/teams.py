@@ -72,3 +72,53 @@ class TeamCard(Base):
 
     # Data versioning for subscription tiers
     data_week_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class TeamWeekCard(Base):
+    """Per-week team cards (dbt-managed api.teams_week_page).
+
+    Same columns as TeamCard plus week_id.
+    Grain: (season_id, league_id, game_type_id, week_id, team_id).
+    """
+
+    __tablename__ = "teams_week_page"
+    __table_args__ = {"schema": "api"}
+
+    # Composite primary key
+    season_id: Mapped[int | None] = mapped_column(Integer, primary_key=True, nullable=True)
+    league_id: Mapped[int | None] = mapped_column(Integer, primary_key=True, nullable=True)
+    game_type_id: Mapped[int | None] = mapped_column(Integer, primary_key=True, nullable=True)
+    week_id: Mapped[int | None] = mapped_column(Integer, primary_key=True, nullable=True)
+    team_id: Mapped[int | None] = mapped_column(BigInteger, primary_key=True, nullable=True)
+
+    # Team info
+    team_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    team_full_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    team_color: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Record
+    wins: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    losses: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    ot_losses: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    # Percentiles
+    offense_percentile: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    defense_percentile: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    goalie_percentile: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    opponents_percentile: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    overall_percentile: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    overall_tier: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Stats
+    total_goals: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    total_goals_against: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    total_xg: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    goals_per_60: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    total_opponent_xg: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    ga_per_60: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+
+    # Last updated
+    last_updated: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+
+    # Data versioning for subscription tiers
+    data_week_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
