@@ -14,8 +14,17 @@ from app.schemas.playoff_odds import PlayoffOddsResponse
 from app.core.auth import require_auth
 from app.models.users import User
 from app.util.tier_routing import get_playoff_odds_model
+from app.util.helpers import validate_param
 
 router = APIRouter()
+
+
+def _validate_playoff_odds_params(season_id: int, league_id: int) -> None:
+    """Validate season/league params consistently with other endpoints."""
+    if not validate_param("season_id", season_id, gt=45, lt=55):
+        raise HTTPException(status_code=400, detail="Invalid season_id")
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
+        raise HTTPException(status_code=400, detail="Invalid league_id")
 
 
 @router.get("/data", response_model=list[PlayoffOddsResponse])
@@ -44,6 +53,8 @@ async def get_playoff_odds(
     Returns:
         List of playoff odds for each team, sorted by playoff probability descending
     """
+    _validate_playoff_odds_params(season_id, league_id)
+
     # Get the appropriate model based on user tier (premium vs free)
     Model = get_playoff_odds_model(user)
 
@@ -89,6 +100,8 @@ async def get_team_playoff_odds(
     Returns:
         Playoff odds for the specified team
     """
+    _validate_playoff_odds_params(season_id, league_id)
+
     # Get the appropriate model based on user tier (premium vs free)
     Model = get_playoff_odds_model(user)
 

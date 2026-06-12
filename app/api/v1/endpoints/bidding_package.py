@@ -193,13 +193,19 @@ async def get_bidding_package_data(
         where_clauses.append("is_rostered = false")
 
     if last_season_ids is not None and last_season_ids.strip():
-        season_id_list = [int(s.strip()) for s in last_season_ids.split(",") if s.strip()]
+        try:
+            season_id_list = [int(s.strip()) for s in last_season_ids.split(",") if s.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid last_season_ids (must be comma-separated integers)")
         if season_id_list:
             where_clauses.append("last_season_id = ANY(:season_id_list)")
             params["season_id_list"] = season_id_list
 
     if last_league_ids is not None and last_league_ids.strip():
-        league_id_list = [int(l.strip()) for l in last_league_ids.split(",") if l.strip()]
+        try:
+            league_id_list = [int(l.strip()) for l in last_league_ids.split(",") if l.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid last_league_ids (must be comma-separated integers)")
         if league_id_list:
             for lid in league_id_list:
                 if lid not in ALLOWED_LEAGUE_IDS:

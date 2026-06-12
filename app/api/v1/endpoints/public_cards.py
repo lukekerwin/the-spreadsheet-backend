@@ -67,6 +67,7 @@ async def get_public_player_cards(
     result = await session.execute(statement)
     players = result.scalars().all()
 
+    last_updated = players[-1].last_updated if players else None
     cards = []
     for row in players:
         header = CardHeader(
@@ -126,7 +127,7 @@ async def get_public_player_cards(
         page_size=DEFAULT_PAGE_SIZE,
         total=total,
         total_pages=total_pages,
-        last_updated=row.last_updated.strftime("%Y-%m-%d") if row.last_updated else "N/A"
+        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A"
     )
 
 
@@ -164,6 +165,7 @@ async def get_public_goalie_cards(
     result = await session.execute(statement)
     goalies = result.scalars().all()
 
+    last_updated = goalies[-1].last_updated if goalies else None
     cards = []
     for row in goalies:
         header = CardHeader(
@@ -222,7 +224,7 @@ async def get_public_goalie_cards(
         page_size=DEFAULT_PAGE_SIZE,
         total=total,
         total_pages=total_pages,
-        last_updated=row.last_updated.strftime("%Y-%m-%d") if row.last_updated else "N/A"
+        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A"
     )
 
 
@@ -260,6 +262,7 @@ async def get_public_team_cards(
     result = await session.execute(statement)
     teams = result.scalars().all()
 
+    last_updated = teams[-1].last_updated if teams else None
     cards = []
     for row in teams:
         header = CardHeader(
@@ -313,5 +316,5 @@ async def get_public_team_cards(
         page_size=DEFAULT_PAGE_SIZE,
         total=total,
         total_pages=total_pages,
-        last_updated=row.last_updated.strftime("%Y-%m-%d") if row.last_updated else "N/A"
+        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A"
     )

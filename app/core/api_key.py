@@ -1,7 +1,7 @@
 """API Key authentication utilities."""
 
 import secrets
-from fastapi import Security, HTTPException, status
+from fastapi import Depends, Security, HTTPException, status
 from fastapi.security import APIKeyHeader
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ def generate_api_key() -> str:
 
 async def get_user_from_api_key(
     api_key: str | None = Security(api_key_header),
-    session: AsyncSession = None
+    session: AsyncSession = Depends(get_db)
 ) -> User | None:
     """Validate API key and return user if valid.
 
@@ -34,12 +34,6 @@ async def get_user_from_api_key(
     if not api_key:
         return None
 
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database session required"
-        )
-
     # Look up user by API key
     statement = select(User).where(User.api_key == api_key, User.is_active == True)
     result = await session.execute(statement)
@@ -50,7 +44,7 @@ async def get_user_from_api_key(
 
 async def require_api_key(
     api_key: str | None = Security(api_key_header),
-    session: AsyncSession = None
+    session: AsyncSession = Depends(get_db)
 ) -> User:
     """Require valid API key, raise 401 if invalid.
 

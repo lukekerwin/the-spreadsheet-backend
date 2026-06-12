@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # CRITICAL: In production, this MUST be set in environment variables to persist sessions.
-    # If not set, a new random key is generated on every server restart, invalidating all existing tokens.
-    SECRET_KEY: str = secrets.token_urlsafe(32)
+    # In development, a random key is generated on startup (existing tokens invalidate on restart).
+    SECRET_KEY: Optional[str] = None
     
     # 60 minutes * 24 hours * 30 days = 30 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30
@@ -44,7 +44,14 @@ class Settings(BaseSettings):
     SYNC_DATABASE_URL: Optional[str] = None
 
     def model_post_init(self, __context: Any) -> None:
-        """Set default DB URLs if missing."""
+        """Set default DB URLs if missing; enforce SECRET_KEY in production."""
+        if not self.SECRET_KEY:
+            if self.ENVIRONMENT == "production":
+                raise ValueError(
+                    "SECRET_KEY must be set in production. "
+                    "Without it, all sessions are invalidated on every restart."
+                )
+            self.SECRET_KEY = secrets.token_urlsafe(32)
         if not self.DATABASE_URL:
             self.DATABASE_URL = (
                 "sqlite+aiosqlite:///./app.db"
@@ -69,6 +76,10 @@ class Settings(BaseSettings):
 
     FIRST_SUPERUSER: EmailStr = "admin@example.com"
     FIRST_SUPERUSER_PASSWORD: str = "admin"
+
+    # Google OAuth credentials
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
 
     # Stripe configuration for subscription management
     STRIPE_SECRET_KEY: Optional[str] = None
