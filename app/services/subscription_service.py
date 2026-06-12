@@ -40,6 +40,19 @@ class SubscriptionService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_plan_by_feature(
+        session: AsyncSession,
+        feature_key: str,
+        plan_type: Optional[str] = None,
+    ) -> Optional[Plan]:
+        """Get the first active plan that grants a specific feature."""
+        plans = await SubscriptionService.get_active_plans(session, plan_type)
+        for plan in plans:
+            if plan.features and plan.features.get(feature_key):
+                return plan
+        return None
+
+    @staticmethod
     async def get_active_plans(
         session: AsyncSession,
         plan_type: Optional[str] = None,
@@ -404,3 +417,11 @@ class SubscriptionService:
     ) -> bool:
         """Check if user has purchased the bidding package."""
         return await SubscriptionService.user_has_feature(session, user_id, "bidding_package")
+
+    @staticmethod
+    async def user_has_manager_tools(
+        session: AsyncSession,
+        user_id: UUID,
+    ) -> bool:
+        """Check if user has manager tools access via subscription."""
+        return await SubscriptionService.user_has_feature(session, user_id, "manager_tools")

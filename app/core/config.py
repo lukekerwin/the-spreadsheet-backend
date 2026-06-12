@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: Optional[str] = None
     STRIPE_PRICE_ID: Optional[str] = None  # Price ID for subscription
     STRIPE_BIDDING_PACKAGE_PRICE_ID: Optional[str] = None  # Price ID for bidding package one-time purchase
+    STRIPE_MANAGER_TOOLS_PRICE_ID: Optional[str] = None  # Price ID for manager tools monthly subscription
 
     # Frontend URL for Stripe redirects
     FRONTEND_URL: str = "http://localhost:3000"

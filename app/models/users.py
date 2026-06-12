@@ -95,6 +95,25 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         return False
 
     @property
+    def has_manager_tools(self) -> bool:
+        """Check if user has manager tools access via subscription.
+
+        Granted by an active subscription whose plan has the 'manager_tools' feature.
+        Superusers always have access.
+        """
+        if self.is_superuser:
+            return True
+
+        if self.subscriptions:
+            for sub in self.subscriptions:
+                if sub.status in ("active", "trialing"):
+                    if sub.plan and sub.plan.features:
+                        if sub.plan.features.get("manager_tools"):
+                            return True
+
+        return False
+
+    @property
     def has_bidding_package_access(self) -> bool:
         """Check if user has purchased the bidding package.
 

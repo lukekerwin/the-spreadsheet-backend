@@ -25,6 +25,7 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET = settings.STRIPE_WEBHOOK_SECRET
 STRIPE_PRICE_ID = settings.STRIPE_PRICE_ID
 STRIPE_BIDDING_PACKAGE_PRICE_ID = settings.STRIPE_BIDDING_PACKAGE_PRICE_ID
+STRIPE_MANAGER_TOOLS_PRICE_ID = settings.STRIPE_MANAGER_TOOLS_PRICE_ID
 FRONTEND_URL = settings.FRONTEND_URL
 
 
@@ -179,6 +180,60 @@ class StripeService:
                 stripe_checkout_session_id=checkout_session.id,
                 status="pending",
             )
+
+        return checkout_session.url
+
+    @staticmethod
+    async def create_manager_tools_checkout(
+        session: AsyncSession,
+        user: User,
+        plan: Optional[Plan] = None,
+        success_url: Optional[str] = None,
+        cancel_url: Optional[str] = None,
+    ) -> str:
+        """Create a Stripe Checkout session for the Manager Tools subscription.
+
+        Args:
+            session: Database session
+            user: User object
+            plan: Plan object (optional, falls back to STRIPE_MANAGER_TOOLS_PRICE_ID)
+            success_url: URL to redirect on success
+            cancel_url: URL to redirect on cancel
+
+        Returns:
+            Checkout session URL
+        """
+        customer_id = await StripeService.get_or_create_customer(session, user)
+
+        # Use plan's price ID or fall back to config
+        price_id = plan.stripe_price_id if plan else STRIPE_MANAGER_TOOLS_PRICE_ID
+        plan_id = str(plan.id) if plan else None
+
+        checkout_session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price": price_id,
+                    "quantity": 1,
+                },
+            ],
+            mode="subscription",
+            success_url=success_url or f"{FRONTEND_URL}/tools/manager?subscribe=success",
+            cancel_url=cancel_url or f"{FRONTEND_URL}/tools/manager?subscribe=canceled",
+            metadata={
+                "user_id": str(user.id),
+                "plan_id": plan_id,
+                "product_type": "manager_tools",
+                "plan_type": "subscription",
+            },
+            subscription_data={
+                "metadata": {
+                    "user_id": str(user.id),
+                    "plan_id": plan_id,
+                },
+            },
+        )
 
         return checkout_session.url
 

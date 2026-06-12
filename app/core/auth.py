@@ -143,8 +143,36 @@ async def get_bidding_package_user(
     return user
 
 
+async def get_manager_tools_user(
+    user: User = Depends(get_current_user_flexible),
+) -> User:
+    """Require authenticated user with manager tools access.
+
+    First authenticates the user, then verifies they have an active
+    Manager Tools subscription (plan feature 'manager_tools').
+    Use this dependency for manager-tools-only endpoints.
+
+    Args:
+        user: Authenticated user from get_current_user_flexible
+
+    Returns:
+        Authenticated user with manager tools access
+
+    Raises:
+        HTTPException: 401 if not authenticated
+        HTTPException: 403 if authenticated but no manager tools subscription
+    """
+    if not user.has_manager_tools:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager Tools subscription required to access this feature",
+        )
+    return user
+
+
 # Convenience aliases
 require_auth = get_current_user_flexible
 optional_auth = get_current_user_optional
 require_premium = get_premium_user
 require_bidding_package = get_bidding_package_user
+require_manager_tools = get_manager_tools_user

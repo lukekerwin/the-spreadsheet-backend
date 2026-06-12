@@ -102,6 +102,7 @@ class SubscriptionStatus(BaseModel):
     cancel_at_period_end: bool
     has_premium_access: bool
     has_bidding_package: bool
+    has_manager_tools: bool
 
     # New detailed fields
     subscriptions: list[SubscriptionResponse]
@@ -187,6 +188,7 @@ async def get_subscription_status(
         cancel_at_period_end=cancel_at_period_end,
         has_premium_access=user.has_premium_access,
         has_bidding_package=user.has_bidding_package_access,
+        has_manager_tools=user.has_manager_tools,
         subscriptions=[
             SubscriptionResponse(
                 id=s.id,
@@ -327,6 +329,59 @@ async def purchase_bidding_package(
 
     try:
         checkout_url = await StripeService.create_bidding_package_checkout(
+            session=session,
+            user=current_user,
+            plan=plan,
+            success_url=success_url,
+            cancel_url=cancel_url,
+        )
+        return CheckoutResponse(checkout_url=checkout_url)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create checkout session: {str(e)}")
+
+
+@router.post("/subscribe-manager-tools", response_model=CheckoutResponse)
+async def subscribe_manager_tools(
+    request: Optional[CheckoutRequest] = None,
+    current_user: User = Depends(require_auth),
+    session: AsyncSession = Depends(get_db),
+) -> CheckoutResponse:
+    """Create a Stripe Checkout session for the Manager Tools subscription.
+
+    This is a monthly subscription. Returns a URL to redirect the user
+    to for payment.
+    """
+    plan = None
+    success_url = None
+    cancel_url = None
+
+    if request:
+        success_url = request.success_url
+        cancel_url = request.cancel_url
+        if request.plan_id:
+            plan = await SubscriptionService.get_plan_by_id(session, request.plan_id)
+            if not plan:
+                raise HTTPException(status_code=404, detail="Plan not found")
+
+    # Default to the active plan that grants manager tools
+    if not plan:
+        plan = await SubscriptionService.get_plan_by_feature(session, "manager_tools", plan_type="subscription")
+
+    # Check if user already has manager tools access
+    if current_user.has_manager_tools:
+        raise HTTPException(status_code=400, detail="You already have a Manager Tools subscription.")
+
+    # Check for an existing active subscription on this plan
+    if plan:
+        existing = await SubscriptionService.get_active_subscription(session, current_user.id, plan.id)
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="You already have an active subscription for this plan.",
+            )
+
+    try:
+        checkout_url = await StripeService.create_manager_tools_checkout(
             session=session,
             user=current_user,
             plan=plan,

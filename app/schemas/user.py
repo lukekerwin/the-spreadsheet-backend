@@ -19,6 +19,8 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     has_premium_access: bool = False
     # One-time purchase access
     has_bidding_package: bool = False
+    # Manager tools subscription access
+    has_manager_tools: bool = False
 
 
 class UserCreate(schemas.BaseUserCreate):
