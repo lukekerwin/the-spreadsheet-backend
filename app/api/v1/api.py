@@ -1,26 +1,28 @@
 """API v1 router configuration."""
 
 import os
+
 from fastapi import APIRouter
-from app.core.users import fastapi_users
-from app.core.security import auth_backend
-from app.core.oauth import google_oauth_client
-from app.core.config import settings
+
 from app.api.v1.endpoints import (
-    players,
-    goalies,
-    teams,
     api_keys,
-    public_cards,
-    player_stats,
-    goalie_stats,
-    playoff_odds,
-    subscriptions,
     bidding_package,
     favorites,
     games,
+    goalie_stats,
+    goalies,
+    player_stats,
+    players,
+    playoff_odds,
+    public_cards,
+    subscriptions,
+    teams,
 )
-from app.schemas.user import UserRead, UserCreate, UserUpdate
+from app.core.config import settings
+from app.core.oauth import google_oauth_client
+from app.core.security import auth_backend
+from app.core.users import fastapi_users
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 
 api_v1_router = APIRouter()
 
@@ -78,7 +80,7 @@ api_v1_router.include_router(players.router, prefix="/players", tags=["Players"]
 api_v1_router.include_router(player_stats.router, prefix="/players", tags=["Players"])
 api_v1_router.include_router(goalies.router, prefix="/goalies", tags=["Goalies"])
 api_v1_router.include_router(goalie_stats.router, prefix="/goalies", tags=["Goalies"])
-api_v1_router.include_router(teams.router, prefix="/teams", tags=['Teams'])
+api_v1_router.include_router(teams.router, prefix="/teams", tags=["Teams"])
 api_v1_router.include_router(playoff_odds.router, prefix="/playoff-odds", tags=["Playoff Odds"])
 api_v1_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["Subscriptions"])
 api_v1_router.include_router(bidding_package.router, prefix="/bidding-package", tags=["Bidding Package"])

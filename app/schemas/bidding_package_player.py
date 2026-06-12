@@ -5,6 +5,7 @@ Schemas for the player detail page showing historical stats and ratings.
 """
 
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 

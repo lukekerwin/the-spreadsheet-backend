@@ -1,9 +1,11 @@
 from typing import Optional
+
 from fastapi import Depends, Request, Response
 from fastapi_users import BaseUserManager, UUIDIDMixin
+
+from app.core.config import settings
 from app.models.users import User
 from app.schemas.user import UserCreate
-from app.core.config import settings
 from app.users.dependencies import get_user_db
 
 SECRET = settings.SECRET_KEY

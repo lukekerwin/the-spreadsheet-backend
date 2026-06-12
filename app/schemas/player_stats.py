@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TeamFilterOption(BaseModel):
     """Team filter option for dropdown"""
+
     team_name: str
 
 

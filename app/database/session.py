@@ -6,8 +6,10 @@ Provides database connection pooling and session lifecycle management.
 """
 
 from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.core.config import settings
 
 # ============================================
@@ -37,6 +39,7 @@ AsyncSessionLocal = sessionmaker(
 # ============================================
 # DEPENDENCY INJECTION
 # ============================================
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get async database session for FastAPI."""

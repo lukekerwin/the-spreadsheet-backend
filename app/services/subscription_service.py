@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.subscriptions import Plan, Subscription, Purchase, PaymentHistory
+from app.models.subscriptions import PaymentHistory, Plan, Purchase, Subscription
 
 
 class SubscriptionService:
@@ -36,9 +36,7 @@ class SubscriptionService:
         stripe_price_id: str,
     ) -> Optional[Plan]:
         """Get plan by Stripe price ID."""
-        result = await session.execute(
-            select(Plan).where(Plan.stripe_price_id == stripe_price_id)
-        )
+        result = await session.execute(select(Plan).where(Plan.stripe_price_id == stripe_price_id))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -47,7 +45,7 @@ class SubscriptionService:
         plan_type: Optional[str] = None,
     ) -> list[Plan]:
         """Get all active plans, optionally filtered by type."""
-        query = select(Plan).where(Plan.is_active == True).order_by(Plan.sort_order)
+        query = select(Plan).where(Plan.is_active.is_(True)).order_by(Plan.sort_order)
         if plan_type:
             query = query.where(Plan.plan_type == plan_type)
         result = await session.execute(query)
@@ -64,9 +62,7 @@ class SubscriptionService:
     ) -> Optional[Subscription]:
         """Get subscription by ID with plan loaded."""
         result = await session.execute(
-            select(Subscription)
-            .options(selectinload(Subscription.plan))
-            .where(Subscription.id == subscription_id)
+            select(Subscription).options(selectinload(Subscription.plan)).where(Subscription.id == subscription_id)
         )
         return result.scalar_one_or_none()
 
@@ -194,9 +190,7 @@ class SubscriptionService:
     ) -> Optional[Purchase]:
         """Get purchase by ID with plan loaded."""
         result = await session.execute(
-            select(Purchase)
-            .options(selectinload(Purchase.plan))
-            .where(Purchase.id == purchase_id)
+            select(Purchase).options(selectinload(Purchase.plan)).where(Purchase.id == purchase_id)
         )
         return result.scalar_one_or_none()
 
@@ -401,9 +395,7 @@ class SubscriptionService:
         user_id: UUID,
     ) -> bool:
         """Check if user has premium access via subscription."""
-        return await SubscriptionService.user_has_feature(
-            session, user_id, "premium_access"
-        )
+        return await SubscriptionService.user_has_feature(session, user_id, "premium_access")
 
     @staticmethod
     async def user_has_bidding_package(
@@ -411,6 +403,4 @@ class SubscriptionService:
         user_id: UUID,
     ) -> bool:
         """Check if user has purchased the bidding package."""
-        return await SubscriptionService.user_has_feature(
-            session, user_id, "bidding_package"
-        )
+        return await SubscriptionService.user_has_feature(session, user_id, "bidding_package")

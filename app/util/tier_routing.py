@@ -6,25 +6,25 @@ based on user subscription status.
 """
 
 from typing import Type
-from app.models.users import User
-
-# Premium models
-from app.models.players import PlayerCard
-from app.models.goalies import GoalieCard
-from app.models.teams import TeamCard
-from app.models.player_stats import PlayerStatsPage
-from app.models.goalie_stats import GoalieStatsPage
-from app.models.playoff_odds import PlayoffOdds
 
 # Free tier snapshot models
 from app.models.free_tier import (
-    PlayerCardFree,
     GoalieCardFree,
-    TeamCardFree,
-    PlayerStatsPageFree,
     GoalieStatsPageFree,
+    PlayerCardFree,
+    PlayerStatsPageFree,
     PlayoffOddsFree,
+    TeamCardFree,
 )
+from app.models.goalie_stats import GoalieStatsPage
+from app.models.goalies import GoalieCard
+from app.models.player_stats import PlayerStatsPage
+
+# Premium models
+from app.models.players import PlayerCard
+from app.models.playoff_odds import PlayoffOdds
+from app.models.teams import TeamCard
+from app.models.users import User
 
 
 def get_player_card_model(user: User) -> Type[PlayerCard] | Type[PlayerCardFree]:

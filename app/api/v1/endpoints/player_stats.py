@@ -7,16 +7,17 @@ All endpoints require authentication.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, distinct
+from sqlalchemy import distinct, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.auth import require_auth
 from app.database.session import get_db
 from app.models.player_stats import PlayerStatsPage
 from app.models.users import User
+from app.schemas.common import Pagination
 from app.schemas.player_stats import PlayerStatsData, TeamFilterOption
 from app.schemas.search import SearchResult, SearchResultItem
-from app.schemas.common import Pagination
-from app.core.auth import require_auth
-from app.util.helpers import validate_param, get_count
+from app.util.helpers import get_count, validate_param
 from app.util.tier_routing import get_player_stats_model
 
 # ============================================
@@ -30,12 +31,32 @@ router = APIRouter()
 # ============================================
 
 SORTABLE_COLUMNS = [
-    "player_name", "team_name", "contract", "win", "loss", "otl",
-    "points", "goals", "assists", "plus_minus",
-    "xg", "xa", "gax", "aax", "ioff", "off_gar",
-    "interceptions", "takeaways", "blocks", "idef", "def_gar",
-    "overall_rating", "offense_rating", "defense_rating",
-    "teammate_rating", "opponent_rating"
+    "player_name",
+    "team_name",
+    "contract",
+    "win",
+    "loss",
+    "otl",
+    "points",
+    "goals",
+    "assists",
+    "plus_minus",
+    "xg",
+    "xa",
+    "gax",
+    "aax",
+    "ioff",
+    "off_gar",
+    "interceptions",
+    "takeaways",
+    "blocks",
+    "idef",
+    "def_gar",
+    "overall_rating",
+    "offense_rating",
+    "defense_rating",
+    "teammate_rating",
+    "opponent_rating",
 ]
 
 # ============================================
@@ -92,8 +113,7 @@ async def get_player_stats(
     # Validate sorting parameters
     if sort_by is not None and sort_by not in SORTABLE_COLUMNS:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid sort_by column. Must be one of: {', '.join(SORTABLE_COLUMNS)}"
+            status_code=400, detail=f"Invalid sort_by column. Must be one of: {', '.join(SORTABLE_COLUMNS)}"
         )
 
     if sort_order not in ["asc", "desc"]:
@@ -253,7 +273,7 @@ async def get_player_stats_filters(
             PlayerStatsPage.season_id == season_id,
             PlayerStatsPage.league_id == league_id,
             PlayerStatsPage.game_type_id == game_type_id,
-            PlayerStatsPage.team_name.isnot(None)
+            PlayerStatsPage.team_name.isnot(None),
         )
         .order_by(PlayerStatsPage.team_name)
     )
@@ -304,11 +324,7 @@ async def get_player_stats_names(
     ]
 
     # Query for player names, sorted alphabetically
-    statement = (
-        select(PlayerStatsPage)
-        .where(*filters)
-        .order_by(PlayerStatsPage.player_name.asc())
-    )
+    statement = select(PlayerStatsPage).where(*filters).order_by(PlayerStatsPage.player_name.asc())
 
     result = await session.execute(statement)
     players = result.scalars().all()
@@ -316,8 +332,6 @@ async def get_player_stats_names(
     # Transform to search results
     search_results = []
     for player in players:
-        search_results.append(
-            SearchResultItem(id=player.player_id, name=player.player_name or "Unknown")
-        )
+        search_results.append(SearchResultItem(id=player.player_id, name=player.player_name or "Unknown"))
 
     return SearchResult(results=search_results)

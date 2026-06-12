@@ -12,8 +12,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth import require_auth
 from app.database.session import get_db
+from app.models.subscriptions import Purchase, Subscription
 from app.models.users import User
-from app.models.subscriptions import Plan, Subscription, Purchase, PaymentHistory
 from app.services.stripe_service import StripeService
 from app.services.subscription_service import SubscriptionService
 
@@ -178,11 +178,7 @@ async def get_subscription_status(
     elif user.subscription_current_period_end:
         period_end = user.subscription_current_period_end.isoformat()
 
-    cancel_at_period_end = (
-        active_sub.cancel_at_period_end
-        if active_sub
-        else user.subscription_cancel_at_period_end
-    )
+    cancel_at_period_end = active_sub.cancel_at_period_end if active_sub else user.subscription_cancel_at_period_end
 
     return SubscriptionStatus(
         tier=tier,
@@ -247,9 +243,7 @@ async def create_checkout_session(
 
     # Check if user already has an active subscription for this plan
     if plan:
-        existing = await SubscriptionService.get_active_subscription(
-            session, current_user.id, plan.id
-        )
+        existing = await SubscriptionService.get_active_subscription(session, current_user.id, plan.id)
         if existing:
             raise HTTPException(
                 status_code=400,
@@ -273,9 +267,7 @@ async def create_checkout_session(
         )
         return CheckoutResponse(checkout_url=checkout_url)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create checkout session: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create checkout session: {str(e)}")
 
 
 @router.post("/create-portal", response_model=PortalResponse)
@@ -288,9 +280,7 @@ async def create_portal_session(
     Returns a URL to redirect the user to for subscription management.
     """
     if not current_user.stripe_customer_id:
-        raise HTTPException(
-            status_code=400, detail="No subscription found. Please subscribe first."
-        )
+        raise HTTPException(status_code=400, detail="No subscription found. Please subscribe first.")
 
     try:
         portal_url = await StripeService.create_portal_session(
@@ -299,9 +289,7 @@ async def create_portal_session(
         )
         return PortalResponse(portal_url=portal_url)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create portal session: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create portal session: {str(e)}")
 
 
 @router.post("/purchase-bidding-package", response_model=CheckoutResponse)
@@ -333,13 +321,9 @@ async def purchase_bidding_package(
 
     # If plan specified, check for existing purchase
     if plan:
-        existing = await SubscriptionService.get_purchase(
-            session, current_user.id, plan.id
-        )
+        existing = await SubscriptionService.get_purchase(session, current_user.id, plan.id)
         if existing:
-            raise HTTPException(
-                status_code=400, detail="You already own this product."
-            )
+            raise HTTPException(status_code=400, detail="You already own this product.")
 
     try:
         checkout_url = await StripeService.create_bidding_package_checkout(
@@ -351,9 +335,7 @@ async def purchase_bidding_package(
         )
         return CheckoutResponse(checkout_url=checkout_url)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create checkout session: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create checkout session: {str(e)}")
 
 
 @router.get("/history", response_model=list[PaymentHistoryResponse])
@@ -367,9 +349,7 @@ async def get_payment_history(
 
     Returns a list of payment events ordered by date (most recent first).
     """
-    payments = await SubscriptionService.get_user_payment_history(
-        session, current_user.id, limit, offset
-    )
+    payments = await SubscriptionService.get_user_payment_history(session, current_user.id, limit, offset)
     return [PaymentHistoryResponse.model_validate(p) for p in payments]
 
 
@@ -389,15 +369,11 @@ async def cancel_subscription(
             at_period_end=True,
         )
         if success:
-            return {
-                "message": "Subscription will be canceled at the end of the billing period."
-            }
+            return {"message": "Subscription will be canceled at the end of the billing period."}
         else:
             raise HTTPException(status_code=400, detail="Failed to cancel subscription.")
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to cancel subscription: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to cancel subscription: {str(e)}")
 
 
 @router.post("/sync")
@@ -422,9 +398,7 @@ async def sync_subscription(
         else:
             raise HTTPException(status_code=400, detail="Failed to sync subscription.")
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to sync subscription: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to sync subscription: {str(e)}")
 
 
 @router.post("/webhook")
@@ -454,8 +428,7 @@ async def stripe_webhook(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         import traceback
+
         tb = traceback.format_exc()
         print(f"Webhook error: {tb}")
-        raise HTTPException(
-            status_code=500, detail=f"Webhook processing failed: {type(e).__name__}: {str(e)}\n{tb}"
-        )
+        raise HTTPException(status_code=500, detail=f"Webhook processing failed: {type(e).__name__}: {str(e)}\n{tb}")

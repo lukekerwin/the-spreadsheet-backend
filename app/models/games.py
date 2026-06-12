@@ -1,11 +1,14 @@
-from datetime import datetime, date
-from sqlalchemy import BigInteger, Integer, Numeric, String, Text, TIMESTAMP, Boolean, Date
+from datetime import date, datetime
+
+from sqlalchemy import TIMESTAMP, BigInteger, Boolean, Date, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database.base_class import Base
 
 
 class GamesPage(Base):
     """api.games_page — one row per game for the Games list page."""
+
     __tablename__ = "games_page"
     __table_args__ = {"schema": "api"}
 
@@ -44,6 +47,7 @@ class GamesPage(Base):
 
 class GameTeamStats(Base):
     """api.game_team_stats_page — per-team box totals + period scoring + team GAR."""
+
     __tablename__ = "game_team_stats_page"
     __table_args__ = {"schema": "api"}
 
@@ -98,6 +102,7 @@ class GameTeamStats(Base):
 
 class GameSkaterStats(Base):
     """api.game_skater_stats_page — per-skater game line + GAR."""
+
     __tablename__ = "game_skater_stats_page"
     __table_args__ = {"schema": "api"}
 
@@ -138,6 +143,7 @@ class GameSkaterStats(Base):
 
 class GameGoalieStats(Base):
     """api.game_goalie_stats_page — per-goalie game line + GAR."""
+
     __tablename__ = "game_goalie_stats_page"
     __table_args__ = {"schema": "api"}
 

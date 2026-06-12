@@ -1,15 +1,18 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 from app.schemas.common import Item
+
 
 class CardHeader(BaseModel):
     title: str
     subtitle: list[Item]
 
+
 class CardBanner(BaseModel):
     overallPercentile: int | str
     tier: str | None
     logoPath: str | None
+
 
 class CardData(BaseModel):
     header: CardHeader

@@ -10,14 +10,21 @@ played results (league 37 is the frontend default).
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func, distinct
+from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
-from app.models.games import GamesPage, GameTeamStats, GameSkaterStats, GameGoalieStats
+from app.models.games import GameGoalieStats, GameSkaterStats, GamesPage, GameTeamStats
 from app.schemas.games import (
-    GameRow, TeamSide, WeekOption, DayOption, GamesResponse,
-    TeamBreakdown, SkaterLine, GoalieLine, GameDetailResponse,
+    DayOption,
+    GameDetailResponse,
+    GameRow,
+    GamesResponse,
+    GoalieLine,
+    SkaterLine,
+    TeamBreakdown,
+    TeamSide,
+    WeekOption,
 )
 from app.util.helpers import validate_param
 
@@ -36,12 +43,20 @@ def _game_row(g: GamesPage) -> GameRow:
         week_id=g.week_id,
         game_datetime=g.game_datetime,
         home=TeamSide(
-            id=g.home_team_id, name=g.home_team_name, full_name=g.home_team_full_name,
-            color=g.home_team_color, logo_path=_logo(g.home_team_full_name), score=g.home_score,
+            id=g.home_team_id,
+            name=g.home_team_name,
+            full_name=g.home_team_full_name,
+            color=g.home_team_color,
+            logo_path=_logo(g.home_team_full_name),
+            score=g.home_score,
         ),
         away=TeamSide(
-            id=g.away_team_id, name=g.away_team_name, full_name=g.away_team_full_name,
-            color=g.away_team_color, logo_path=_logo(g.away_team_full_name), score=g.away_score,
+            id=g.away_team_id,
+            name=g.away_team_name,
+            full_name=g.away_team_full_name,
+            color=g.away_team_color,
+            logo_path=_logo(g.away_team_full_name),
+            score=g.away_score,
         ),
         winner=g.winner,
         is_overtime=bool(g.is_overtime),
@@ -75,15 +90,29 @@ async def get_games(
 
     # available seasons (desc)
     seasons = [
-        r[0] for r in (await session.execute(
-            select(distinct(GamesPage.season_id)).where(*base).order_by(GamesPage.season_id.desc())
-        )).all()
+        r[0]
+        for r in (
+            await session.execute(
+                select(distinct(GamesPage.season_id)).where(*base).order_by(GamesPage.season_id.desc())
+            )
+        ).all()
     ]
     if not seasons:
         return GamesResponse(
-            data=[], season_id=season_id or 0, league_id=league_id, game_type_id=game_type_id,
-            week_id=0, game_date=None, seasons=[], weeks=[], days=[], total=0, page_number=page_number,
-            page_size=page_size, total_pages=0, last_updated="N/A",
+            data=[],
+            season_id=season_id or 0,
+            league_id=league_id,
+            game_type_id=game_type_id,
+            week_id=0,
+            game_date=None,
+            seasons=[],
+            weeks=[],
+            days=[],
+            total=0,
+            page_number=page_number,
+            page_size=page_size,
+            total_pages=0,
+            last_updated="N/A",
         )
 
     # resolve season -> latest if not given
@@ -95,13 +124,18 @@ async def get_games(
     season_filter = base + [GamesPage.season_id == season_id]
 
     # weeks for the resolved season (with played / scheduled counts)
-    week_rows = (await session.execute(
-        select(
-            GamesPage.week_id,
-            func.count().filter(GamesPage.is_final.is_(True)).label("played"),
-            func.count().filter(GamesPage.is_final.is_(False)).label("scheduled"),
-        ).where(*season_filter).group_by(GamesPage.week_id).order_by(GamesPage.week_id)
-    )).all()
+    week_rows = (
+        await session.execute(
+            select(
+                GamesPage.week_id,
+                func.count().filter(GamesPage.is_final.is_(True)).label("played"),
+                func.count().filter(GamesPage.is_final.is_(False)).label("scheduled"),
+            )
+            .where(*season_filter)
+            .group_by(GamesPage.week_id)
+            .order_by(GamesPage.week_id)
+        )
+    ).all()
     weeks = [WeekOption(week_id=w, played=p, scheduled=s) for (w, p, s) in week_rows if w is not None]
 
     # resolve week -> latest with played results, else latest overall
@@ -112,11 +146,14 @@ async def get_games(
     week_filter = season_filter + [GamesPage.week_id == week_id]
 
     # days that have completed games in this week (scheduled games have no date)
-    day_rows = (await session.execute(
-        select(GamesPage.game_date, func.count().label("played"))
-        .where(*week_filter, GamesPage.game_date.isnot(None), GamesPage.is_final.is_(True))
-        .group_by(GamesPage.game_date).order_by(GamesPage.game_date)
-    )).all()
+    day_rows = (
+        await session.execute(
+            select(GamesPage.game_date, func.count().label("played"))
+            .where(*week_filter, GamesPage.game_date.isnot(None), GamesPage.is_final.is_(True))
+            .group_by(GamesPage.game_date)
+            .order_by(GamesPage.game_date)
+        )
+    ).all()
     days = [DayOption(date=d.isoformat(), label=d.strftime("%A"), played=p) for (d, p) in day_rows]
 
     # resolve day -> provided value, else the latest day with completed games
@@ -133,15 +170,21 @@ async def get_games(
     if resolved_day is not None:
         game_filter.append(GamesPage.game_date == resolved_day)
 
-    total = (await session.execute(
-        select(func.count()).select_from(GamesPage).where(*game_filter)
-    )).scalar() or 0
+    total = (await session.execute(select(func.count()).select_from(GamesPage).where(*game_filter))).scalar() or 0
 
-    rows = (await session.execute(
-        select(GamesPage).where(*game_filter)
-        .order_by(GamesPage.game_datetime.asc().nullslast(), GamesPage.game_id.asc())
-        .offset((page_number - 1) * page_size).limit(page_size)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(GamesPage)
+                .where(*game_filter)
+                .order_by(GamesPage.game_datetime.asc().nullslast(), GamesPage.game_id.asc())
+                .offset((page_number - 1) * page_size)
+                .limit(page_size)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     data = [_game_row(g) for g in rows]
 
@@ -173,9 +216,7 @@ async def get_game_detail(
     session: AsyncSession = Depends(get_db),
 ):
     """Full breakdown for a single game: header, team comparison, skaters, goalies. Public."""
-    header_row = (await session.execute(
-        select(GamesPage).where(GamesPage.game_id == game_id)
-    )).scalar_one_or_none()
+    header_row = (await session.execute(select(GamesPage).where(GamesPage.game_id == game_id))).scalar_one_or_none()
     if header_row is None:
         raise HTTPException(status_code=404, detail="Game not found")
 
@@ -183,58 +224,132 @@ async def get_game_detail(
     away_id = header_row.away_team_id
 
     # team breakdowns
-    team_rows = (await session.execute(
-        select(GameTeamStats).where(GameTeamStats.game_id == game_id)
-    )).scalars().all()
+    team_rows = (await session.execute(select(GameTeamStats).where(GameTeamStats.game_id == game_id))).scalars().all()
 
     def team_breakdown(t: GameTeamStats) -> TeamBreakdown:
         return TeamBreakdown(
-            team_id=t.team_id, team_name=t.team_name, full_team_name=t.full_team_name,
-            team_color=t.team_color, logo_path=_logo(t.full_team_name),
-            is_home=bool(t.is_home), score=t.score,
-            team_wins=t.team_wins, team_losses=t.team_losses, team_otl=t.team_otl,
-            p1g=t.p1g or 0, p2g=t.p2g or 0, p3g=t.p3g or 0, otg=t.otg or 0,
-            is_overtime=bool(t.is_overtime), win=t.win, loss=t.loss, otl=t.otl,
-            goals=t.goals, shots=t.shots, shots_against=t.shots_against, hits=t.hits, toa=t.toa,
-            fow=t.fow, fol=t.fol, pim=t.pim, ppg=t.ppg, ppa=t.ppa, blocks=t.blocks,
-            takeaways=t.takeaways, giveaways=t.giveaways, interceptions=t.interceptions,
-            pk_clears=t.pk_clears, shg=t.shg, passes=t.passes, passes_att=t.passes_att, saves=t.saves,
-            total_gar=t.total_gar, offensive_gar=t.offensive_gar, defensive_gar=t.defensive_gar,
-            total_xg=t.total_xg, opponent_xg=t.opponent_xg,
+            team_id=t.team_id,
+            team_name=t.team_name,
+            full_team_name=t.full_team_name,
+            team_color=t.team_color,
+            logo_path=_logo(t.full_team_name),
+            is_home=bool(t.is_home),
+            score=t.score,
+            team_wins=t.team_wins,
+            team_losses=t.team_losses,
+            team_otl=t.team_otl,
+            p1g=t.p1g or 0,
+            p2g=t.p2g or 0,
+            p3g=t.p3g or 0,
+            otg=t.otg or 0,
+            is_overtime=bool(t.is_overtime),
+            win=t.win,
+            loss=t.loss,
+            otl=t.otl,
+            goals=t.goals,
+            shots=t.shots,
+            shots_against=t.shots_against,
+            hits=t.hits,
+            toa=t.toa,
+            fow=t.fow,
+            fol=t.fol,
+            pim=t.pim,
+            ppg=t.ppg,
+            ppa=t.ppa,
+            blocks=t.blocks,
+            takeaways=t.takeaways,
+            giveaways=t.giveaways,
+            interceptions=t.interceptions,
+            pk_clears=t.pk_clears,
+            shg=t.shg,
+            passes=t.passes,
+            passes_att=t.passes_att,
+            saves=t.saves,
+            total_gar=t.total_gar,
+            offensive_gar=t.offensive_gar,
+            defensive_gar=t.defensive_gar,
+            total_xg=t.total_xg,
+            opponent_xg=t.opponent_xg,
         )
 
     home_team = next((team_breakdown(t) for t in team_rows if t.team_id == home_id), None)
     away_team = next((team_breakdown(t) for t in team_rows if t.team_id == away_id), None)
 
     # skaters (ordered by points, then GAR)
-    skater_rows = (await session.execute(
-        select(GameSkaterStats).where(GameSkaterStats.game_id == game_id)
-        .order_by(GameSkaterStats.points.desc().nullslast(), GameSkaterStats.total_gar.desc().nullslast())
-    )).scalars().all()
+    skater_rows = (
+        (
+            await session.execute(
+                select(GameSkaterStats)
+                .where(GameSkaterStats.game_id == game_id)
+                .order_by(GameSkaterStats.points.desc().nullslast(), GameSkaterStats.total_gar.desc().nullslast())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     def skater_line(s: GameSkaterStats) -> SkaterLine:
         return SkaterLine(
-            player_id=s.player_id, player_name=s.player_name, team_id=s.team_id,
-            position=s.position, pos_group=s.pos_group, toi=s.toi,
-            points=s.points, goals=s.goals, assists=s.assists, plus_minus=s.plus_minus,
-            shots=s.shots, hits=s.hits, takeaways=s.takeaways, giveaways=s.giveaways,
-            blocks=s.blocks, interceptions=s.interceptions, pim=s.pim, ppg=s.ppg, shg=s.shg,
-            gwg=s.gwg, fow=s.fow, fol=s.fol,
-            total_gar=s.total_gar, offensive_gar=s.offensive_gar, defensive_gar=s.defensive_gar,
-            xg=s.xg, xa=s.xa, ovr=s.ovr, off_rating=s.off_rating, def_rating=s.def_rating,
+            player_id=s.player_id,
+            player_name=s.player_name,
+            team_id=s.team_id,
+            position=s.position,
+            pos_group=s.pos_group,
+            toi=s.toi,
+            points=s.points,
+            goals=s.goals,
+            assists=s.assists,
+            plus_minus=s.plus_minus,
+            shots=s.shots,
+            hits=s.hits,
+            takeaways=s.takeaways,
+            giveaways=s.giveaways,
+            blocks=s.blocks,
+            interceptions=s.interceptions,
+            pim=s.pim,
+            ppg=s.ppg,
+            shg=s.shg,
+            gwg=s.gwg,
+            fow=s.fow,
+            fol=s.fol,
+            total_gar=s.total_gar,
+            offensive_gar=s.offensive_gar,
+            defensive_gar=s.defensive_gar,
+            xg=s.xg,
+            xa=s.xa,
+            ovr=s.ovr,
+            off_rating=s.off_rating,
+            def_rating=s.def_rating,
         )
 
     # goalies (ordered by TOI, starter first)
-    goalie_rows = (await session.execute(
-        select(GameGoalieStats).where(GameGoalieStats.game_id == game_id)
-        .order_by(GameGoalieStats.toi.desc().nullslast())
-    )).scalars().all()
+    goalie_rows = (
+        (
+            await session.execute(
+                select(GameGoalieStats)
+                .where(GameGoalieStats.game_id == game_id)
+                .order_by(GameGoalieStats.toi.desc().nullslast())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     def goalie_line(g: GameGoalieStats) -> GoalieLine:
         return GoalieLine(
-            player_id=g.player_id, player_name=g.player_name, team_id=g.team_id, toi=g.toi,
-            shots_against=g.shots_against, saves=g.saves, goals_against=g.goals_against,
-            sv_pct=g.sv_pct, gaa=g.gaa, shutouts=g.shutouts, gsax=g.gsax, gsaa=g.gsaa, ovr=g.ovr,
+            player_id=g.player_id,
+            player_name=g.player_name,
+            team_id=g.team_id,
+            toi=g.toi,
+            shots_against=g.shots_against,
+            saves=g.saves,
+            goals_against=g.goals_against,
+            sv_pct=g.sv_pct,
+            gaa=g.gaa,
+            shutouts=g.shutouts,
+            gsax=g.gsax,
+            gsaa=g.gsaa,
+            ovr=g.ovr,
         )
 
     return GameDetailResponse(

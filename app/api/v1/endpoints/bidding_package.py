@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import require_bidding_package
 from app.database.session import get_db
 from app.models.users import User
 from app.schemas.bidding_package import BiddingPackageData
@@ -18,7 +19,6 @@ from app.schemas.bidding_package_player import (
     PlayerSeasonStats,
 )
 from app.schemas.common import Pagination
-from app.core.auth import require_bidding_package
 from app.util.helpers import validate_param
 
 # ============================================
@@ -203,7 +203,7 @@ async def get_bidding_package_data(
 
     if last_league_ids is not None and last_league_ids.strip():
         try:
-            league_id_list = [int(l.strip()) for l in last_league_ids.split(",") if l.strip()]
+            league_id_list = [int(lid.strip()) for lid in last_league_ids.split(",") if lid.strip()]
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid last_league_ids (must be comma-separated integers)")
         if league_id_list:

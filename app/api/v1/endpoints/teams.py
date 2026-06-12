@@ -6,17 +6,18 @@ All endpoints require authentication except where noted.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, distinct, and_
+from sqlalchemy import and_, distinct, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database.session import get_db
-from app.models.teams import TeamCard, TeamSOS, TeamWeekCard
-from app.models.users import User
-from app.schemas.card import CardData, CardHeader, CardBanner
-from app.schemas.search import SearchResult, SearchResultItem
-from app.schemas.common import Item, Pagination
-from app.schemas.team_sos import TeamSOSData
+
 from app.core.auth import require_auth
-from app.util.helpers import validate_param, get_count
+from app.database.session import get_db
+from app.models.teams import TeamSOS, TeamWeekCard
+from app.models.users import User
+from app.schemas.card import CardBanner, CardData, CardHeader
+from app.schemas.common import Item, Pagination
+from app.schemas.search import SearchResult, SearchResultItem
+from app.schemas.team_sos import TeamSOSData
+from app.util.helpers import get_count, validate_param
 from app.util.tier_routing import get_team_card_model
 
 # ============================================
@@ -26,10 +27,10 @@ from app.util.tier_routing import get_team_card_model
 router = APIRouter()
 
 
-
 # ===============================================
 # GET /teams/cards
 # ===============================================
+
 
 @router.get("/cards", response_model=Pagination[CardData])
 async def get_team_cards(
@@ -45,7 +46,7 @@ async def get_team_cards(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -54,11 +55,7 @@ async def get_team_cards(
     Model = get_team_card_model(user)
 
     # Build the base filter query
-    filters = [
-        Model.season_id == season_id,
-        Model.league_id == league_id,
-        Model.game_type_id == game_type_id
-    ]
+    filters = [Model.season_id == season_id, Model.league_id == league_id, Model.game_type_id == game_type_id]
 
     if team_id is not None:
         if not validate_param("team_id", team_id, gt=0):
@@ -69,7 +66,7 @@ async def get_team_cards(
         raise HTTPException(status_code=400, detail="Invalid page_number")
 
     total = await get_count(session, Model, filters)
-    statement = select(Model).where(*filters).offset((page_number-1)*page_size).limit(page_size)
+    statement = select(Model).where(*filters).offset((page_number - 1) * page_size).limit(page_size)
 
     result = await session.execute(statement)
     teams = result.scalars().all()
@@ -79,15 +76,21 @@ async def get_team_cards(
         header = CardHeader(
             title=str(row.team_name) if row.team_name else "N/A",
             subtitle=[
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Points", value=f"{(row.wins*2)+row.ot_losses} pts" if row.wins is not None else "N/A")
-            ]
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Points", value=f"{(row.wins * 2) + row.ot_losses} pts" if row.wins is not None else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.overall_percentile)*100) if row.overall_percentile != None else "N/A",
+            overallPercentile=round(float(row.overall_percentile) * 100)
+            if row.overall_percentile is not None
+            else "N/A",
             tier=str(row.overall_tier) if row.overall_tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_full_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_full_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
@@ -96,10 +99,22 @@ async def get_team_cards(
         ]
 
         ratings = [
-            Item(label="OFFENSE", value=round(float(row.offense_percentile)*100) if row.offense_percentile != None else "N/A"),
-            Item(label="DEFENSE", value=round(float(row.defense_percentile)*100) if row.defense_percentile != None else "N/A"),
-            Item(label="GOALIES", value=round(float(row.goalie_percentile)*100) if row.goalie_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.opponents_percentile)*100) if row.opponents_percentile != None else "N/A"),
+            Item(
+                label="OFFENSE",
+                value=round(float(row.offense_percentile) * 100) if row.offense_percentile is not None else "N/A",
+            ),
+            Item(
+                label="DEFENSE",
+                value=round(float(row.defense_percentile) * 100) if row.defense_percentile is not None else "N/A",
+            ),
+            Item(
+                label="GOALIES",
+                value=round(float(row.goalie_percentile) * 100) if row.goalie_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.opponents_percentile) * 100) if row.opponents_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -135,12 +150,14 @@ async def get_team_cards(
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated_str
+        last_updated=last_updated_str,
     )
+
 
 # ===============================================
 # GET /teams/cards/weekly
 # ===============================================
+
 
 @router.get("/cards/weekly", response_model=Pagination[CardData])
 async def get_team_weekly_cards(
@@ -155,7 +172,7 @@ async def get_team_weekly_cards(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -178,7 +195,7 @@ async def get_team_weekly_cards(
         select(TeamWeekCard)
         .where(*filters)
         .order_by(TeamWeekCard.week_id.asc())
-        .offset((page_number-1)*page_size)
+        .offset((page_number - 1) * page_size)
         .limit(page_size)
     )
 
@@ -190,15 +207,21 @@ async def get_team_weekly_cards(
         header = CardHeader(
             title=str(row.team_name) if row.team_name else "N/A",
             subtitle=[
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Points", value=f"{(row.wins*2)+row.ot_losses} pts" if row.wins is not None else "N/A")
-            ]
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Points", value=f"{(row.wins * 2) + row.ot_losses} pts" if row.wins is not None else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.overall_percentile)*100) if row.overall_percentile != None else "N/A",
+            overallPercentile=round(float(row.overall_percentile) * 100)
+            if row.overall_percentile is not None
+            else "N/A",
             tier=str(row.overall_tier) if row.overall_tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_full_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_full_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
@@ -207,10 +230,22 @@ async def get_team_weekly_cards(
         ]
 
         ratings = [
-            Item(label="OFFENSE", value=round(float(row.offense_percentile)*100) if row.offense_percentile != None else "N/A"),
-            Item(label="DEFENSE", value=round(float(row.defense_percentile)*100) if row.defense_percentile != None else "N/A"),
-            Item(label="GOALIES", value=round(float(row.goalie_percentile)*100) if row.goalie_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.opponents_percentile)*100) if row.opponents_percentile != None else "N/A"),
+            Item(
+                label="OFFENSE",
+                value=round(float(row.offense_percentile) * 100) if row.offense_percentile is not None else "N/A",
+            ),
+            Item(
+                label="DEFENSE",
+                value=round(float(row.defense_percentile) * 100) if row.defense_percentile is not None else "N/A",
+            ),
+            Item(
+                label="GOALIES",
+                value=round(float(row.goalie_percentile) * 100) if row.goalie_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.opponents_percentile) * 100) if row.opponents_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -247,12 +282,14 @@ async def get_team_weekly_cards(
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated_str
+        last_updated=last_updated_str,
     )
+
 
 # ===============================================
 # GET /teams/cards/names
 # ===============================================
+
 
 @router.get("/cards/names", response_model=SearchResult)
 async def get_team_cards_search(
@@ -265,7 +302,7 @@ async def get_team_cards_search(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -287,18 +324,15 @@ async def get_team_cards_search(
 
     search_results = []
     for row in teams:
-        search_results.append(
-            SearchResultItem(id=row.team_id, name=row.team_full_name)
-        )
+        search_results.append(SearchResultItem(id=row.team_id, name=row.team_full_name))
 
-    return SearchResult(
-        results=search_results
-    )
+    return SearchResult(results=search_results)
 
 
 # ===============================================
 # GET /teams/sos/filters
 # ===============================================
+
 
 @router.get("/sos/filters")
 async def get_team_sos_filters(
@@ -315,7 +349,7 @@ async def get_team_sos_filters(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -369,20 +403,18 @@ async def get_team_sos_filters(
         3: "Wednesday",
         4: "Thursday",
         5: "Friday",
-        6: "Saturday"
+        6: "Saturday",
     }
 
     day_options = [{"label": day_names.get(day, f"Day {day}"), "value": day} for day in days]
 
-    return {
-        "weeks": week_options,
-        "days_of_week": day_options
-    }
+    return {"weeks": week_options, "days_of_week": day_options}
 
 
 # ===============================================
 # GET /teams/sos/data
 # ===============================================
+
 
 @router.get("/sos/data", response_model=list[TeamSOSData])
 async def get_team_sos_data(
@@ -404,7 +436,7 @@ async def get_team_sos_data(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -420,9 +452,7 @@ async def get_team_sos_data(
 
     # Build query with ordering
     statement = (
-        select(TeamSOS)
-        .where(*filters)
-        .order_by(TeamSOS.opponent_rating.desc())  # Order by opponent rating (SOS)
+        select(TeamSOS).where(*filters).order_by(TeamSOS.opponent_rating.desc())  # Order by opponent rating (SOS)
     )
 
     result = await session.execute(statement)

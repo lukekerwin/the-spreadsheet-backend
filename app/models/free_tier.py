@@ -4,9 +4,11 @@ Updated every Tuesday at 11:30 PM ET via scheduled job.
 """
 
 from datetime import datetime
-from sqlalchemy import BigInteger, Integer, Numeric, String, Text, TIMESTAMP, Float, DateTime, Column
+
+from sqlalchemy import TIMESTAMP, BigInteger, Column, DateTime, Float, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database.base_class import Base
 
 

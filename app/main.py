@@ -5,19 +5,18 @@ Entry point for the FastAPI application with CORS middleware and API routing.
 Configures API documentation visibility based on environment.
 """
 
-import os
 import logging
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.core.config import settings
+
 from app.api.v1.api import api_v1_router
+from app.core.config import settings
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Log startup info
@@ -26,6 +25,7 @@ logger.info(f"Starting application in {settings.ENVIRONMENT} environment")
 # ============================================
 # APPLICATION FACTORY
 # ============================================
+
 
 def create_application() -> FastAPI:
     """Create FastAPI app with middleware and routes."""
@@ -56,6 +56,7 @@ def create_application() -> FastAPI:
     application.include_router(api_v1_router, prefix=settings.API_V1_STR)
     return application
 
+
 # ============================================
 # APPLICATION INSTANCE
 # ============================================
@@ -66,18 +67,18 @@ app = create_application()
 # EXCEPTION HANDLERS
 # ============================================
 
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Log all unhandled exceptions."""
     logger.error(f"Unhandled exception on {request.method} {request.url}: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
 
 # ============================================
 # ROOT ENDPOINTS
 # ============================================
+
 
 @app.get("/")
 def root():
@@ -87,6 +88,7 @@ def root():
         "version": "0.1.0",
         "docs": f"{settings.API_V1_STR}/docs",
     }
+
 
 @app.get("/health")
 async def health():

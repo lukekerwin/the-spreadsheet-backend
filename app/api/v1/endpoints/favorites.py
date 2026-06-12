@@ -4,14 +4,14 @@ Favorites Endpoints
 Endpoints for managing user favorites (bidding package players).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 
+from app.core.auth import require_auth
 from app.database.session import get_db
 from app.models.users import User
-from app.core.auth import require_auth
 
 # ============================================
 # ROUTER CONFIGURATION
@@ -23,16 +23,20 @@ router = APIRouter()
 # SCHEMAS
 # ============================================
 
+
 class FavoriteResponse(BaseModel):
     signup_id: str
     is_favorite: bool
 
+
 class FavoritesList(BaseModel):
     favorites: list[str]
+
 
 # ============================================
 # ENDPOINTS
 # ============================================
+
 
 @router.get("", response_model=FavoritesList)
 async def get_favorites(
@@ -70,10 +74,7 @@ async def add_favorite(
         SELECT id FROM auth.user_favorites
         WHERE user_id = :user_id AND signup_id = :signup_id
     """)
-    result = await session.execute(check_query, {
-        "user_id": str(current_user.id),
-        "signup_id": signup_id
-    })
+    result = await session.execute(check_query, {"user_id": str(current_user.id), "signup_id": signup_id})
 
     if result.fetchone():
         # Already favorited
@@ -85,10 +86,7 @@ async def add_favorite(
         VALUES (:user_id, :signup_id)
     """)
 
-    await session.execute(insert_query, {
-        "user_id": str(current_user.id),
-        "signup_id": signup_id
-    })
+    await session.execute(insert_query, {"user_id": str(current_user.id), "signup_id": signup_id})
     await session.commit()
 
     return FavoriteResponse(signup_id=signup_id, is_favorite=True)
@@ -108,10 +106,7 @@ async def remove_favorite(
         WHERE user_id = :user_id AND signup_id = :signup_id
     """)
 
-    await session.execute(delete_query, {
-        "user_id": str(current_user.id),
-        "signup_id": signup_id
-    })
+    await session.execute(delete_query, {"user_id": str(current_user.id), "signup_id": signup_id})
     await session.commit()
 
     return FavoriteResponse(signup_id=signup_id, is_favorite=False)

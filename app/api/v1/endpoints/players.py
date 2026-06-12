@@ -8,14 +8,15 @@ All endpoints require authentication except where noted.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.auth import require_auth
 from app.database.session import get_db
 from app.models.players import PlayerCard, PlayerWeekCard
 from app.models.users import User
-from app.schemas.search import SearchResult, SearchResultItem
-from app.schemas.card import CardData, CardHeader, CardBanner
+from app.schemas.card import CardBanner, CardData, CardHeader
 from app.schemas.common import Item, Pagination
-from app.core.auth import require_auth
-from app.util.helpers import validate_param, get_count
+from app.schemas.search import SearchResult, SearchResultItem
+from app.util.helpers import get_count, validate_param
 from app.util.tier_routing import get_player_card_model
 
 # ============================================
@@ -25,10 +26,10 @@ from app.util.tier_routing import get_player_card_model
 router = APIRouter()
 
 
-
 # ===============================================
 # GET /players/cards
 # ===============================================
+
 
 @router.get("/cards", response_model=Pagination[CardData])
 async def get_player_cards(
@@ -46,7 +47,7 @@ async def get_player_cards(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -61,7 +62,7 @@ async def get_player_cards(
         Model.season_id == season_id,
         Model.league_id == league_id,
         Model.game_type_id == game_type_id,
-        Model.pos_group == pos_group
+        Model.pos_group == pos_group,
     ]
 
     # Optional player filter (supports both single and multiple player IDs)
@@ -91,7 +92,7 @@ async def get_player_cards(
         raise HTTPException(status_code=400, detail="Invalid page_size (must be 1-200)")
 
     total = await get_count(session, Model, filters)
-    statement = select(Model).where(*filters).offset((page_number-1)*page_size).limit(page_size)
+    statement = select(Model).where(*filters).offset((page_number - 1) * page_size).limit(page_size)
 
     result = await session.execute(statement)
     players = result.scalars().all()
@@ -102,15 +103,19 @@ async def get_player_cards(
             title=str(row.player_name) if row.player_name else "N/A",
             subtitle=[
                 Item(label="Position", value=str(row.pos_group) if row.pos_group else "N/A"),
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Contract", value=f"{float(int(row.contract)/1000000)}M" if row.contract else "N/A")
-            ]
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Contract", value=f"{float(int(row.contract) / 1000000)}M" if row.contract else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.war_percentile)*100) if row.war_percentile != None else "N/A",
+            overallPercentile=round(float(row.war_percentile) * 100) if row.war_percentile is not None else "N/A",
             tier=str(row.tier) if row.tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
@@ -120,10 +125,22 @@ async def get_player_cards(
         ]
 
         ratings = [
-            Item(label="OFFENSE", value=round(float(row.war_offense_pct)*100) if row.war_offense_pct != None else "N/A"),
-            Item(label="DEFENSE", value=round(float(row.war_defense_pct)*100) if row.war_defense_pct != None else "N/A"),
-            Item(label="TEAMMATES", value=round(float(row.team_percentile)*100) if row.team_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.sos_percentile)*100) if row.sos_percentile != None else "N/A"),
+            Item(
+                label="OFFENSE",
+                value=round(float(row.war_offense_pct) * 100) if row.war_offense_pct is not None else "N/A",
+            ),
+            Item(
+                label="DEFENSE",
+                value=round(float(row.war_defense_pct) * 100) if row.war_defense_pct is not None else "N/A",
+            ),
+            Item(
+                label="TEAMMATES",
+                value=round(float(row.team_percentile) * 100) if row.team_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.sos_percentile) * 100) if row.sos_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -163,12 +180,14 @@ async def get_player_cards(
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated_str
+        last_updated=last_updated_str,
     )
+
 
 # ===============================================
 # GET /players/cards/weekly
 # ===============================================
+
 
 @router.get("/cards/weekly", response_model=Pagination[CardData])
 async def get_player_weekly_cards(
@@ -184,7 +203,7 @@ async def get_player_weekly_cards(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -210,7 +229,7 @@ async def get_player_weekly_cards(
         select(PlayerWeekCard)
         .where(*filters)
         .order_by(PlayerWeekCard.week_id.asc())
-        .offset((page_number-1)*page_size)
+        .offset((page_number - 1) * page_size)
         .limit(page_size)
     )
 
@@ -223,15 +242,19 @@ async def get_player_weekly_cards(
             title=str(row.player_name) if row.player_name else "N/A",
             subtitle=[
                 Item(label="Position", value=str(row.pos_group) if row.pos_group else "N/A"),
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Contract", value=f"{float(int(row.contract)/1000000)}M" if row.contract else "N/A")
-            ]
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Contract", value=f"{float(int(row.contract) / 1000000)}M" if row.contract else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.war_percentile)*100) if row.war_percentile != None else "N/A",
+            overallPercentile=round(float(row.war_percentile) * 100) if row.war_percentile is not None else "N/A",
             tier=str(row.tier) if row.tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
@@ -241,10 +264,22 @@ async def get_player_weekly_cards(
         ]
 
         ratings = [
-            Item(label="OFFENSE", value=round(float(row.war_offense_pct)*100) if row.war_offense_pct != None else "N/A"),
-            Item(label="DEFENSE", value=round(float(row.war_defense_pct)*100) if row.war_defense_pct != None else "N/A"),
-            Item(label="TEAMMATES", value=round(float(row.team_percentile)*100) if row.team_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.sos_percentile)*100) if row.sos_percentile != None else "N/A"),
+            Item(
+                label="OFFENSE",
+                value=round(float(row.war_offense_pct) * 100) if row.war_offense_pct is not None else "N/A",
+            ),
+            Item(
+                label="DEFENSE",
+                value=round(float(row.war_defense_pct) * 100) if row.war_defense_pct is not None else "N/A",
+            ),
+            Item(
+                label="TEAMMATES",
+                value=round(float(row.team_percentile) * 100) if row.team_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.sos_percentile) * 100) if row.sos_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -285,12 +320,14 @@ async def get_player_weekly_cards(
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated_str
+        last_updated=last_updated_str,
     )
+
 
 # ===============================================
 # GET /players/cards/names
 # ===============================================
+
 
 @router.get("/cards/names", response_model=SearchResult)
 async def get_player_cards_search(
@@ -303,7 +340,7 @@ async def get_player_cards_search(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -325,10 +362,6 @@ async def get_player_cards_search(
 
     search_results = []
     for row in players:
-        search_results.append(
-            SearchResultItem(id=row.player_id, name=row.player_name)
-        )
+        search_results.append(SearchResultItem(id=row.player_id, name=row.player_name))
 
-    return SearchResult(
-        results=search_results
-    )
+    return SearchResult(results=search_results)

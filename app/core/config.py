@@ -7,6 +7,7 @@ Loads settings from environment variables with validation and defaults.
 
 import secrets
 from typing import Any, List, Optional, Union
+
 from pydantic import AnyHttpUrl, EmailStr, field_validator
 from pydantic_settings import BaseSettings
 
@@ -14,16 +15,17 @@ from pydantic_settings import BaseSettings
 # SETTINGS CLASS
 # ============================================
 
+
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     ALGORITHM: str = "HS256"
     API_V1_STR: str = "/api/v1"
-    
+
     # CRITICAL: In production, this MUST be set in environment variables to persist sessions.
     # In development, a random key is generated on startup (existing tokens invalidate on restart).
     SECRET_KEY: Optional[str] = None
-    
+
     # 60 minutes * 24 hours * 30 days = 30 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
@@ -48,8 +50,7 @@ class Settings(BaseSettings):
         if not self.SECRET_KEY:
             if self.ENVIRONMENT == "production":
                 raise ValueError(
-                    "SECRET_KEY must be set in production. "
-                    "Without it, all sessions are invalidated on every restart."
+                    "SECRET_KEY must be set in production. Without it, all sessions are invalidated on every restart."
                 )
             self.SECRET_KEY = secrets.token_urlsafe(32)
         if not self.DATABASE_URL:
@@ -64,7 +65,6 @@ class Settings(BaseSettings):
                 if self.ENVIRONMENT == "development"
                 else "postgresql://postgres:postgres@db:5432/ts-api"
             )
-
 
     SMTP_TLS: bool = True
     SMTP_PORT: Optional[int] = None
@@ -95,6 +95,7 @@ class Settings(BaseSettings):
         "case_sensitive": True,
         "extra": "ignore",
     }
+
 
 # ============================================
 # SETTINGS INSTANCE

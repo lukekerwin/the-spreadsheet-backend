@@ -1,14 +1,12 @@
 """Combined authentication (JWT + API Key)."""
 
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import APIKeyHeader
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.users import current_active_user, fastapi_users
-from app.core.api_key import get_user_from_api_key, api_key_header
+from app.core.api_key import api_key_header, get_user_from_api_key
+from app.core.users import fastapi_users
 from app.database.session import get_db
 from app.models.users import User
-
 
 # Create an optional user dependency for flexible auth
 _optional_jwt_user = fastapi_users.current_user(active=True, optional=True)

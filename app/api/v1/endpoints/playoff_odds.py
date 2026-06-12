@@ -8,13 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.session import get_db
-from app.models.playoff_odds import PlayoffOdds
-from app.schemas.playoff_odds import PlayoffOddsResponse
 from app.core.auth import require_auth
+from app.database.session import get_db
 from app.models.users import User
-from app.util.tier_routing import get_playoff_odds_model
+from app.schemas.playoff_odds import PlayoffOddsResponse
 from app.util.helpers import validate_param
+from app.util.tier_routing import get_playoff_odds_model
 
 router = APIRouter()
 
@@ -73,7 +72,7 @@ async def get_playoff_odds(
         raise HTTPException(
             status_code=404,
             detail=f"No playoff odds found for season {season_id}, league {league_id}. "
-                   "Run the simulation script to generate data."
+            "Run the simulation script to generate data.",
         )
 
     return [PlayoffOddsResponse.model_validate(o) for o in odds]
@@ -118,7 +117,7 @@ async def get_team_playoff_odds(
     if not odds:
         raise HTTPException(
             status_code=404,
-            detail=f"Playoff odds not found for team {team_id} in season {season_id}, league {league_id}"
+            detail=f"Playoff odds not found for team {team_id} in season {season_id}, league {league_id}",
         )
 
     return PlayoffOddsResponse.model_validate(odds)

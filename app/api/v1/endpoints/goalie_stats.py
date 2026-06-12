@@ -1,17 +1,17 @@
 """Goalie stats endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, distinct
+from sqlalchemy import distinct, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import require_auth
 from app.database.session import get_db
 from app.models.goalie_stats import GoalieStatsPage
 from app.models.users import User
+from app.schemas.common import Pagination
 from app.schemas.goalie_stats import GoalieStatsData, TeamFilterOption
 from app.schemas.search import SearchResult, SearchResultItem
-from app.schemas.common import Pagination
-from app.core.auth import require_auth
-from app.util.helpers import validate_param, get_count
+from app.util.helpers import get_count, validate_param
 from app.util.tier_routing import get_goalie_stats_model
 
 router = APIRouter()
@@ -61,16 +61,28 @@ async def get_goalie_stats(
 
     # Validate sorting parameters
     SORTABLE_COLUMNS = [
-        "player_name", "team_name", "contract", "win", "loss", "otl",
-        "shots_against", "xsh", "shots_prevented", "goals_against", "xga",
-        "gsax", "gsaa", "shutouts",
-        "overall_rating", "teammate_rating", "opponent_rating"
+        "player_name",
+        "team_name",
+        "contract",
+        "win",
+        "loss",
+        "otl",
+        "shots_against",
+        "xsh",
+        "shots_prevented",
+        "goals_against",
+        "xga",
+        "gsax",
+        "gsaa",
+        "shutouts",
+        "overall_rating",
+        "teammate_rating",
+        "opponent_rating",
     ]
 
     if sort_by is not None and sort_by not in SORTABLE_COLUMNS:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid sort_by column. Must be one of: {', '.join(SORTABLE_COLUMNS)}"
+            status_code=400, detail=f"Invalid sort_by column. Must be one of: {', '.join(SORTABLE_COLUMNS)}"
         )
 
     if sort_order not in ["asc", "desc"]:
@@ -220,7 +232,7 @@ async def get_goalie_stats_filters(
             GoalieStatsPage.season_id == season_id,
             GoalieStatsPage.league_id == league_id,
             GoalieStatsPage.game_type_id == game_type_id,
-            GoalieStatsPage.team_name.isnot(None)
+            GoalieStatsPage.team_name.isnot(None),
         )
         .order_by(GoalieStatsPage.team_name)
     )
@@ -266,11 +278,7 @@ async def get_goalie_stats_names(
     ]
 
     # Query for goalie names, sorted alphabetically
-    statement = (
-        select(GoalieStatsPage)
-        .where(*filters)
-        .order_by(GoalieStatsPage.player_name.asc())
-    )
+    statement = select(GoalieStatsPage).where(*filters).order_by(GoalieStatsPage.player_name.asc())
 
     result = await session.execute(statement)
     goalies = result.scalars().all()
@@ -278,8 +286,6 @@ async def get_goalie_stats_names(
     # Transform to search results
     search_results = []
     for goalie in goalies:
-        search_results.append(
-            SearchResultItem(id=goalie.player_id, name=goalie.player_name or "Unknown")
-        )
+        search_results.append(SearchResultItem(id=goalie.player_id, name=goalie.player_name or "Unknown"))
 
     return SearchResult(results=search_results)

@@ -1,7 +1,9 @@
-from sqlalchemy import BigInteger, Integer, String, Float, DateTime
-from sqlalchemy.orm import Mapped, mapped_column
-from app.database.base_class import Base
 from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, Float, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database.base_class import Base
 
 
 class PlayerStatsPage(Base):

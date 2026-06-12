@@ -2,12 +2,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import String, DateTime, Boolean
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database.base_class import Base
 
 if TYPE_CHECKING:
-    from app.models.subscriptions import Subscription, Purchase, PaymentHistory
+    from app.models.subscriptions import PaymentHistory, Purchase, Subscription
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -21,6 +22,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     - is_superuser: bool (default False)
     - is_verified: bool (default False)
     """
+
     __tablename__ = "users"
     __table_args__ = {"schema": "auth"}  # Put in auth schema to separate from public
 
@@ -30,25 +32,17 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     api_key: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
 
     # Subscription fields
-    subscription_tier: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="free"
-    )  # 'free' or 'subscriber'
+    subscription_tier: Mapped[str] = mapped_column(String(20), nullable=False, default="free")  # 'free' or 'subscriber'
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subscription_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="none"
     )  # 'none', 'active', 'canceled', 'past_due', 'trialing'
-    subscription_current_period_end: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    subscription_cancel_at_period_end: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    subscription_current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    subscription_cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # One-time purchase access
-    has_bidding_package: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    has_bidding_package: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # ========================================
     # Relationships to new subscription tables

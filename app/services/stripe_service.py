@@ -8,15 +8,14 @@ This service handles all Stripe operations and implements dual-write mode:
 import json
 from datetime import datetime, timezone
 from typing import Optional
-from uuid import UUID
 
 import stripe
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.subscriptions import Plan
 from app.models.users import User
-from app.models.subscriptions import Plan, Subscription, Purchase
 from app.services.subscription_service import SubscriptionService
 
 # Initialize Stripe with API key from settings
@@ -160,10 +159,8 @@ class StripeService:
                 },
             ],
             mode="payment",  # One-time payment, not subscription
-            success_url=success_url
-            or f"{FRONTEND_URL}/tools/bidding-package?purchase=success",
-            cancel_url=cancel_url
-            or f"{FRONTEND_URL}/tools/bidding-package?purchase=canceled",
+            success_url=success_url or f"{FRONTEND_URL}/tools/bidding-package?purchase=success",
+            cancel_url=cancel_url or f"{FRONTEND_URL}/tools/bidding-package?purchase=canceled",
             metadata={
                 "user_id": str(user.id),
                 "plan_id": plan_id,
@@ -228,9 +225,7 @@ class StripeService:
             Dict with processing result
         """
         try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, STRIPE_WEBHOOK_SECRET
-            )
+            event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
         except ValueError:
             raise ValueError("Invalid payload")
         except stripe.error.SignatureVerificationError:
@@ -257,19 +252,13 @@ class StripeService:
         return {"status": "success", "event_type": event_type}
 
     @staticmethod
-    async def _get_user_by_customer_id(
-        session: AsyncSession, customer_id: str
-    ) -> Optional[User]:
+    async def _get_user_by_customer_id(session: AsyncSession, customer_id: str) -> Optional[User]:
         """Get user by Stripe customer ID."""
-        result = await session.execute(
-            select(User).where(User.stripe_customer_id == customer_id)
-        )
+        result = await session.execute(select(User).where(User.stripe_customer_id == customer_id))
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def _handle_checkout_completed(
-        session: AsyncSession, checkout_session: dict
-    ) -> None:
+    async def _handle_checkout_completed(session: AsyncSession, checkout_session: dict) -> None:
         """Handle successful checkout completion."""
         customer_id = checkout_session.get("customer")
         subscription_id = checkout_session.get("subscription")
@@ -293,14 +282,10 @@ class StripeService:
 
             # NEW: Complete the purchase in new table
             if plan_id:
-                purchase = await SubscriptionService.get_purchase_by_checkout_session(
-                    session, checkout_session_id
-                )
+                purchase = await SubscriptionService.get_purchase_by_checkout_session(session, checkout_session_id)
                 if purchase:
                     payment_intent_id = checkout_session.get("payment_intent")
-                    await SubscriptionService.complete_purchase(
-                        session, purchase, payment_intent_id
-                    )
+                    await SubscriptionService.complete_purchase(session, purchase, payment_intent_id)
 
                     # Record payment history
                     await SubscriptionService.record_payment(
@@ -308,9 +293,7 @@ class StripeService:
                         user_id=user.id,
                         purchase_id=purchase.id,
                         event_type="payment_succeeded",
-                        amount_cents=checkout_session.get(
-                            "amount_total", purchase.amount_cents
-                        ),
+                        amount_cents=checkout_session.get("amount_total", purchase.amount_cents),
                         status="succeeded",
                         stripe_payment_intent_id=payment_intent_id,
                     )
@@ -327,23 +310,17 @@ class StripeService:
         await session.commit()
 
     @staticmethod
-    async def _handle_subscription_created(
-        session: AsyncSession, subscription: dict
-    ) -> None:
+    async def _handle_subscription_created(session: AsyncSession, subscription: dict) -> None:
         """Handle new subscription creation."""
         await StripeService._update_user_subscription(session, subscription)
 
     @staticmethod
-    async def _handle_subscription_updated(
-        session: AsyncSession, subscription: dict
-    ) -> None:
+    async def _handle_subscription_updated(session: AsyncSession, subscription: dict) -> None:
         """Handle subscription updates (renewals, plan changes, etc.)."""
         await StripeService._update_user_subscription(session, subscription)
 
     @staticmethod
-    async def _handle_subscription_deleted(
-        session: AsyncSession, subscription: dict
-    ) -> None:
+    async def _handle_subscription_deleted(session: AsyncSession, subscription: dict) -> None:
         """Handle subscription cancellation."""
         customer_id = subscription.get("customer")
         stripe_sub_id = subscription.get("id")
@@ -365,9 +342,7 @@ class StripeService:
 
         # NEW: Update subscription in new table
         if stripe_sub_id:
-            sub = await SubscriptionService.get_subscription_by_stripe_id(
-                session, stripe_sub_id
-            )
+            sub = await SubscriptionService.get_subscription_by_stripe_id(session, stripe_sub_id)
             if sub:
                 await SubscriptionService.update_subscription_status(
                     session=session,
@@ -394,9 +369,7 @@ class StripeService:
         # Find subscription in new table
         subscription = None
         if stripe_sub_id:
-            subscription = await SubscriptionService.get_subscription_by_stripe_id(
-                session, stripe_sub_id
-            )
+            subscription = await SubscriptionService.get_subscription_by_stripe_id(session, stripe_sub_id)
 
         # Record payment history
         await SubscriptionService.record_payment(
@@ -432,9 +405,7 @@ class StripeService:
         # NEW: Update subscription in new table
         subscription = None
         if stripe_sub_id:
-            subscription = await SubscriptionService.get_subscription_by_stripe_id(
-                session, stripe_sub_id
-            )
+            subscription = await SubscriptionService.get_subscription_by_stripe_id(session, stripe_sub_id)
             if subscription:
                 await SubscriptionService.update_subscription_status(
                     session=session,
@@ -461,9 +432,7 @@ class StripeService:
         await session.commit()
 
     @staticmethod
-    async def _update_user_subscription(
-        session: AsyncSession, subscription: dict
-    ) -> None:
+    async def _update_user_subscription(session: AsyncSession, subscription: dict) -> None:
         """Update user subscription based on Stripe subscription object.
 
         Implements dual-write: updates both legacy User fields and new Subscription table.
@@ -498,26 +467,12 @@ class StripeService:
         trial_start = subscription.get("trial_start")
         trial_end = subscription.get("trial_end")
 
-        period_start_dt = (
-            datetime.fromtimestamp(period_start, tz=timezone.utc)
-            if period_start
-            else None
-        )
-        period_end_dt = (
-            datetime.fromtimestamp(period_end, tz=timezone.utc) if period_end else None
-        )
-        trial_start_dt = (
-            datetime.fromtimestamp(trial_start, tz=timezone.utc)
-            if trial_start
-            else None
-        )
-        trial_end_dt = (
-            datetime.fromtimestamp(trial_end, tz=timezone.utc) if trial_end else None
-        )
+        period_start_dt = datetime.fromtimestamp(period_start, tz=timezone.utc) if period_start else None
+        period_end_dt = datetime.fromtimestamp(period_end, tz=timezone.utc) if period_end else None
+        trial_start_dt = datetime.fromtimestamp(trial_start, tz=timezone.utc) if trial_start else None
+        trial_end_dt = datetime.fromtimestamp(trial_end, tz=timezone.utc) if trial_end else None
 
-        cancel_at_period_end = subscription.get("cancel_at_period_end", False) or (
-            cancel_at is not None
-        )
+        cancel_at_period_end = subscription.get("cancel_at_period_end", False) or (cancel_at is not None)
 
         # ============================================
         # LEGACY: Update User model fields
@@ -535,9 +490,7 @@ class StripeService:
         if period_end_dt:
             user.subscription_current_period_end = period_end_dt
         elif cancel_at:
-            user.subscription_current_period_end = datetime.fromtimestamp(
-                cancel_at, tz=timezone.utc
-            )
+            user.subscription_current_period_end = datetime.fromtimestamp(cancel_at, tz=timezone.utc)
 
         user.subscription_cancel_at_period_end = cancel_at_period_end
         session.add(user)
@@ -552,15 +505,11 @@ class StripeService:
         # Look up plan by price ID
         plan = None
         if stripe_price_id:
-            plan = await SubscriptionService.get_plan_by_stripe_price_id(
-                session, stripe_price_id
-            )
+            plan = await SubscriptionService.get_plan_by_stripe_price_id(session, stripe_price_id)
 
         if plan:
             # Check if subscription record exists
-            sub = await SubscriptionService.get_subscription_by_stripe_id(
-                session, stripe_sub_id
-            )
+            sub = await SubscriptionService.get_subscription_by_stripe_id(session, stripe_sub_id)
 
             if sub:
                 # Update existing subscription
@@ -613,9 +562,7 @@ class StripeService:
             return False
 
     @staticmethod
-    async def cancel_subscription(
-        session: AsyncSession, user: User, at_period_end: bool = True
-    ) -> bool:
+    async def cancel_subscription(session: AsyncSession, user: User, at_period_end: bool = True) -> bool:
         """Cancel a user's subscription.
 
         Args:
@@ -640,9 +587,7 @@ class StripeService:
             session.add(user)
 
             # NEW: Update subscription table
-            sub = await SubscriptionService.get_subscription_by_stripe_id(
-                session, stripe_sub_id
-            )
+            sub = await SubscriptionService.get_subscription_by_stripe_id(session, stripe_sub_id)
             if sub:
                 await SubscriptionService.update_subscription_status(
                     session=session,
@@ -663,9 +608,7 @@ class StripeService:
             session.add(user)
 
             # NEW: Update subscription table
-            sub = await SubscriptionService.get_subscription_by_stripe_id(
-                session, stripe_sub_id
-            )
+            sub = await SubscriptionService.get_subscription_by_stripe_id(session, stripe_sub_id)
             if sub:
                 await SubscriptionService.update_subscription_status(
                     session=session,

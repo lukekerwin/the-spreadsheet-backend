@@ -2,7 +2,7 @@
 SQLAlchemy model for playoff odds data
 """
 
-from sqlalchemy import Column, Integer, String, Numeric, DateTime
+from sqlalchemy import Column, DateTime, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -12,8 +12,8 @@ Base = declarative_base()
 class PlayoffOdds(Base):
     """Playoff odds and seeding probabilities"""
 
-    __tablename__ = 'playoff_odds'
-    __table_args__ = {'schema': 'api'}
+    __tablename__ = "playoff_odds"
+    __table_args__ = {"schema": "api"}
 
     season_id = Column(Integer, primary_key=True)
     league_id = Column(Integer, primary_key=True)
@@ -34,7 +34,7 @@ class PlayoffOdds(Base):
 
     # Seeding probabilities (flexible JSONB for any number of seeds)
     seed_probabilities = Column(JSONB)
-    
+
     # Legacy seeding probabilities (for backward compatibility, seeds 1-8 only)
     seed_1_prob = Column(Numeric(5, 2))
     seed_2_prob = Column(Numeric(5, 2))

@@ -6,12 +6,14 @@ Response models for the Games list page. camelCase serialization (REST conventio
 
 from datetime import datetime
 from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
 class _Camel(BaseModel):
     """Base that serializes snake_case fields as camelCase."""
+
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
@@ -32,7 +34,7 @@ class GameRow(BaseModel):
     game_datetime: Optional[datetime] = Field(default=None, serialization_alias="gameDatetime")
     home: TeamSide
     away: TeamSide
-    winner: Optional[str] = None          # 'home' | 'away' | 'tie' | 'scheduled'
+    winner: Optional[str] = None  # 'home' | 'away' | 'tie' | 'scheduled'
     is_overtime: bool = Field(default=False, serialization_alias="isOvertime")
     is_forfeit: bool = Field(default=False, serialization_alias="isForfeit")
     is_final: bool = Field(default=False, serialization_alias="isFinal")
@@ -47,13 +49,14 @@ class WeekOption(BaseModel):
 
 class DayOption(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
-    date: str                                   # ISO yyyy-mm-dd (filter value)
-    label: str                                  # weekday name, e.g. "Tuesday"
+    date: str  # ISO yyyy-mm-dd (filter value)
+    label: str  # weekday name, e.g. "Tuesday"
     played: int
 
 
 class GamesResponse(BaseModel):
     """Everything the Games page needs in one call: games + resolved filters + options."""
+
     model_config = ConfigDict(populate_by_name=True)
     data: List[GameRow]
     season_id: int = Field(serialization_alias="seasonId")
@@ -61,9 +64,9 @@ class GamesResponse(BaseModel):
     game_type_id: int = Field(serialization_alias="gameTypeId")
     week_id: int = Field(serialization_alias="weekId")
     game_date: Optional[str] = Field(default=None, serialization_alias="gameDate")  # resolved day
-    seasons: List[int]                                            # available seasons, desc
-    weeks: List[WeekOption]                                       # weeks for the resolved season
-    days: List[DayOption]                                         # days (with results) in the resolved week
+    seasons: List[int]  # available seasons, desc
+    weeks: List[WeekOption]  # weeks for the resolved season
+    days: List[DayOption]  # days (with results) in the resolved week
     total: int
     page_number: int = Field(serialization_alias="pageNumber")
     page_size: int = Field(serialization_alias="pageSize")
@@ -74,6 +77,7 @@ class GamesResponse(BaseModel):
 # ============================================
 # GAME DETAIL
 # ============================================
+
 
 class TeamBreakdown(_Camel):
     team_id: int

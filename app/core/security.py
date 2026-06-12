@@ -1,9 +1,9 @@
 """Security utilities using FastAPI-Users authentication backend."""
 
 from fastapi_users.authentication import (
-    JWTStrategy,
     AuthenticationBackend,
     BearerTransport,
+    JWTStrategy,
 )
 
 from app.core.config import settings

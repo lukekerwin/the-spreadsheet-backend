@@ -13,10 +13,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
-from app.models.players import PlayerCard
 from app.models.goalies import GoalieCard
+from app.models.players import PlayerCard
 from app.models.teams import TeamCard
-from app.schemas.card import CardData, CardHeader, CardBanner
+from app.schemas.card import CardBanner, CardData, CardHeader
 from app.schemas.common import Item, Pagination
 from app.util.helpers import get_count
 
@@ -33,6 +33,7 @@ DEFAULT_PAGE_SIZE = 24
 # ===============================================
 # GET /public/cards/player
 # ===============================================
+
 
 @router.get("/cards/player", response_model=Pagination[CardData])
 async def get_public_player_cards(
@@ -53,7 +54,7 @@ async def get_public_player_cards(
         PlayerCard.season_id == DEFAULT_SEASON_ID,
         PlayerCard.league_id == DEFAULT_LEAGUE_ID,
         PlayerCard.game_type_id == DEFAULT_GAME_TYPE_ID,
-        PlayerCard.pos_group == "C"
+        PlayerCard.pos_group == "C",
     ]
 
     total = await get_count(session, PlayerCard, filters)
@@ -74,15 +75,19 @@ async def get_public_player_cards(
             title=str(row.player_name) if row.player_name else "N/A",
             subtitle=[
                 Item(label="Position", value=str(row.pos_group) if row.pos_group else "N/A"),
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Contract", value=f"{float(int(row.contract)/1000000)}M" if row.contract else "N/A")
-            ]
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Contract", value=f"{float(int(row.contract) / 1000000)}M" if row.contract else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.war_percentile)*100) if row.war_percentile != None else "N/A",
+            overallPercentile=round(float(row.war_percentile) * 100) if row.war_percentile is not None else "N/A",
             tier=str(row.tier) if row.tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
@@ -92,10 +97,22 @@ async def get_public_player_cards(
         ]
 
         ratings = [
-            Item(label="OFFENSE", value=round(float(row.war_offense_pct)*100) if row.war_offense_pct != None else "N/A"),
-            Item(label="DEFENSE", value=round(float(row.war_defense_pct)*100) if row.war_defense_pct != None else "N/A"),
-            Item(label="TEAMMATES", value=round(float(row.team_percentile)*100) if row.team_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.sos_percentile)*100) if row.sos_percentile != None else "N/A"),
+            Item(
+                label="OFFENSE",
+                value=round(float(row.war_offense_pct) * 100) if row.war_offense_pct is not None else "N/A",
+            ),
+            Item(
+                label="DEFENSE",
+                value=round(float(row.war_defense_pct) * 100) if row.war_defense_pct is not None else "N/A",
+            ),
+            Item(
+                label="TEAMMATES",
+                value=round(float(row.team_percentile) * 100) if row.team_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.sos_percentile) * 100) if row.sos_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -116,7 +133,7 @@ async def get_public_player_cards(
             ratings=ratings,
             stats=stats,
             teamColor=row.team_color or "#1e293b",
-            entityId=row.player_id
+            entityId=row.player_id,
         )
         cards.append(card)
 
@@ -127,13 +144,14 @@ async def get_public_player_cards(
         page_size=DEFAULT_PAGE_SIZE,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A"
+        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A",
     )
 
 
 # ===============================================
 # GET /public/cards/goalie
 # ===============================================
+
 
 @router.get("/cards/goalie", response_model=Pagination[CardData])
 async def get_public_goalie_cards(
@@ -151,7 +169,7 @@ async def get_public_goalie_cards(
     filters = [
         GoalieCard.season_id == DEFAULT_SEASON_ID,
         GoalieCard.league_id == DEFAULT_LEAGUE_ID,
-        GoalieCard.game_type_id == DEFAULT_GAME_TYPE_ID
+        GoalieCard.game_type_id == DEFAULT_GAME_TYPE_ID,
     ]
 
     total = await get_count(session, GoalieCard, filters)
@@ -171,28 +189,46 @@ async def get_public_goalie_cards(
         header = CardHeader(
             title=str(row.player_name) if row.player_name else "N/A",
             subtitle=[
-                Item(label="Position", value='G'),
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Contract", value=f"{float(int(row.contract)/1000000)}M" if row.contract else "N/A")
-            ]
+                Item(label="Position", value="G"),
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Contract", value=f"{float(int(row.contract) / 1000000)}M" if row.contract else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.overall_percentile)*100) if row.overall_percentile != None else "N/A",
+            overallPercentile=round(float(row.overall_percentile) * 100)
+            if row.overall_percentile is not None
+            else "N/A",
             tier=str(row.tier) if row.tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
-            Item(label="SV%", value=round(float(row.save_pct),3) if row.save_pct else "N/A"),
+            Item(label="SV%", value=round(float(row.save_pct), 3) if row.save_pct else "N/A"),
             Item(label="GAA", value=round(float(row.gaa), 2) if row.gaa is not None else "N/A"),
         ]
 
         ratings = [
-            Item(label="GSAX", value=round(float(row.gsax_percentile*100)) if row.gsax_percentile != None else "N/A"),
-            Item(label="SUPPORT", value=round(float(row.def_percentile*100)) if row.def_percentile != None else "N/A"),
-            Item(label="TEAMMATES", value=round(float(row.team_percentile*100)) if row.team_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.sos_percentile*100)) if row.sos_percentile != None else "N/A"),
+            Item(
+                label="GSAX",
+                value=round(float(row.gsax_percentile * 100)) if row.gsax_percentile is not None else "N/A",
+            ),
+            Item(
+                label="SUPPORT",
+                value=round(float(row.def_percentile * 100)) if row.def_percentile is not None else "N/A",
+            ),
+            Item(
+                label="TEAMMATES",
+                value=round(float(row.team_percentile * 100)) if row.team_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.sos_percentile * 100)) if row.sos_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -213,7 +249,7 @@ async def get_public_goalie_cards(
             ratings=ratings,
             stats=stats,
             teamColor=row.team_color or "#1e293b",
-            entityId=row.player_id
+            entityId=row.player_id,
         )
         cards.append(card)
 
@@ -224,13 +260,14 @@ async def get_public_goalie_cards(
         page_size=DEFAULT_PAGE_SIZE,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A"
+        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A",
     )
 
 
 # ===============================================
 # GET /public/cards/team
 # ===============================================
+
 
 @router.get("/cards/team", response_model=Pagination[CardData])
 async def get_public_team_cards(
@@ -248,15 +285,12 @@ async def get_public_team_cards(
     filters = [
         TeamCard.season_id == DEFAULT_SEASON_ID,
         TeamCard.league_id == DEFAULT_LEAGUE_ID,
-        TeamCard.game_type_id == DEFAULT_GAME_TYPE_ID
+        TeamCard.game_type_id == DEFAULT_GAME_TYPE_ID,
     ]
 
     total = await get_count(session, TeamCard, filters)
     statement = (
-        select(TeamCard)
-        .where(*filters)
-        .offset((DEFAULT_PAGE_NUMBER - 1) * DEFAULT_PAGE_SIZE)
-        .limit(DEFAULT_PAGE_SIZE)
+        select(TeamCard).where(*filters).offset((DEFAULT_PAGE_NUMBER - 1) * DEFAULT_PAGE_SIZE).limit(DEFAULT_PAGE_SIZE)
     )
 
     result = await session.execute(statement)
@@ -268,15 +302,21 @@ async def get_public_team_cards(
         header = CardHeader(
             title=str(row.team_name) if row.team_name else "N/A",
             subtitle=[
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Points", value=f"{(row.wins*2)+row.ot_losses} pts" if row.wins is not None else "N/A")
-            ]
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Points", value=f"{(row.wins * 2) + row.ot_losses} pts" if row.wins is not None else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.overall_percentile)*100) if row.overall_percentile != None else "N/A",
+            overallPercentile=round(float(row.overall_percentile) * 100)
+            if row.overall_percentile is not None
+            else "N/A",
             tier=str(row.overall_tier) if row.overall_tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_full_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_full_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
@@ -285,10 +325,22 @@ async def get_public_team_cards(
         ]
 
         ratings = [
-            Item(label="OFFENSE", value=round(float(row.offense_percentile)*100) if row.offense_percentile != None else "N/A"),
-            Item(label="DEFENSE", value=round(float(row.defense_percentile)*100) if row.defense_percentile != None else "N/A"),
-            Item(label="GOALIES", value=round(float(row.goalie_percentile)*100) if row.goalie_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.opponents_percentile)*100) if row.opponents_percentile != None else "N/A"),
+            Item(
+                label="OFFENSE",
+                value=round(float(row.offense_percentile) * 100) if row.offense_percentile is not None else "N/A",
+            ),
+            Item(
+                label="DEFENSE",
+                value=round(float(row.defense_percentile) * 100) if row.defense_percentile is not None else "N/A",
+            ),
+            Item(
+                label="GOALIES",
+                value=round(float(row.goalie_percentile) * 100) if row.goalie_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.opponents_percentile) * 100) if row.opponents_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -305,7 +357,7 @@ async def get_public_team_cards(
             ratings=ratings,
             stats=stats,
             teamColor=row.team_color or "#1e293b",
-            entityId=row.team_id
+            entityId=row.team_id,
         )
         cards.append(card)
 
@@ -316,5 +368,5 @@ async def get_public_team_cards(
         page_size=DEFAULT_PAGE_SIZE,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A"
+        last_updated=last_updated.strftime("%Y-%m-%d") if last_updated else "N/A",
     )

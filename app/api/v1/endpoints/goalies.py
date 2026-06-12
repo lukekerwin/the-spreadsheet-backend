@@ -8,14 +8,15 @@ All endpoints require authentication except where noted.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.auth import require_auth
 from app.database.session import get_db
 from app.models.goalies import GoalieCard, GoalieWeekCard
 from app.models.users import User
-from app.schemas.card import CardData, CardHeader, CardBanner
-from app.schemas.search import SearchResult, SearchResultItem
+from app.schemas.card import CardBanner, CardData, CardHeader
 from app.schemas.common import Item, Pagination
-from app.core.auth import require_auth
-from app.util.helpers import validate_param, get_count
+from app.schemas.search import SearchResult, SearchResultItem
+from app.util.helpers import get_count, validate_param
 from app.util.tier_routing import get_goalie_card_model
 
 # ============================================
@@ -25,10 +26,10 @@ from app.util.tier_routing import get_goalie_card_model
 router = APIRouter()
 
 
-
 # ===============================================
 # GET /goalies/cards
 # ===============================================
+
 
 @router.get("/cards", response_model=Pagination[CardData])
 async def get_goalie_cards(
@@ -45,7 +46,7 @@ async def get_goalie_cards(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -54,11 +55,7 @@ async def get_goalie_cards(
     Model = get_goalie_card_model(user)
 
     # Build the base filter query
-    filters = [
-        Model.season_id == season_id,
-        Model.league_id == league_id,
-        Model.game_type_id == game_type_id
-    ]
+    filters = [Model.season_id == season_id, Model.league_id == league_id, Model.game_type_id == game_type_id]
 
     # Optional goalie filter (supports both single and multiple goalie IDs)
     # Priority: player_ids > player_id (for backward compatibility)
@@ -91,7 +88,7 @@ async def get_goalie_cards(
         select(Model)
         .where(*filters)
         .order_by(Model.overall_percentile.desc().nulls_last())
-        .offset((page_number-1)*page_size)
+        .offset((page_number - 1) * page_size)
         .limit(page_size)
     )
 
@@ -103,28 +100,46 @@ async def get_goalie_cards(
         header = CardHeader(
             title=str(row.player_name) if row.player_name else "N/A",
             subtitle=[
-                Item(label="Position", value='G'),
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Contract", value=f"{float(int(row.contract)/1000000)}M" if row.contract else "N/A")
-            ]
+                Item(label="Position", value="G"),
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Contract", value=f"{float(int(row.contract) / 1000000)}M" if row.contract else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.overall_percentile)*100) if row.overall_percentile != None else "N/A",
+            overallPercentile=round(float(row.overall_percentile) * 100)
+            if row.overall_percentile is not None
+            else "N/A",
             tier=str(row.tier) if row.tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
-            Item(label="SV%", value=round(float(row.save_pct),3) if row.save_pct else "N/A"),
+            Item(label="SV%", value=round(float(row.save_pct), 3) if row.save_pct else "N/A"),
             Item(label="GAA", value=round(float(row.gaa), 2) if row.gaa is not None else "N/A"),
         ]
 
         ratings = [
-            Item(label="GSAX", value=round(float(row.gsax_percentile*100)) if row.gsax_percentile != None else "N/A"),
-            Item(label="SUPPORT", value=round(float(row.def_percentile*100)) if row.def_percentile != None else "N/A"),
-            Item(label="TEAMMATES", value=round(float(row.team_percentile*100)) if row.team_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.sos_percentile*100)) if row.sos_percentile != None else "N/A"),
+            Item(
+                label="GSAX",
+                value=round(float(row.gsax_percentile * 100)) if row.gsax_percentile is not None else "N/A",
+            ),
+            Item(
+                label="SUPPORT",
+                value=round(float(row.def_percentile * 100)) if row.def_percentile is not None else "N/A",
+            ),
+            Item(
+                label="TEAMMATES",
+                value=round(float(row.team_percentile * 100)) if row.team_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.sos_percentile * 100)) if row.sos_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -164,12 +179,14 @@ async def get_goalie_cards(
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated_str
+        last_updated=last_updated_str,
     )
+
 
 # ===============================================
 # GET /goalies/cards/weekly
 # ===============================================
+
 
 @router.get("/cards/weekly", response_model=Pagination[CardData])
 async def get_goalie_weekly_cards(
@@ -184,7 +201,7 @@ async def get_goalie_weekly_cards(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -207,7 +224,7 @@ async def get_goalie_weekly_cards(
         select(GoalieWeekCard)
         .where(*filters)
         .order_by(GoalieWeekCard.week_id.asc())
-        .offset((page_number-1)*page_size)
+        .offset((page_number - 1) * page_size)
         .limit(page_size)
     )
 
@@ -219,28 +236,46 @@ async def get_goalie_weekly_cards(
         header = CardHeader(
             title=str(row.player_name) if row.player_name else "N/A",
             subtitle=[
-                Item(label="Position", value='G'),
-                Item(label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"),
-                Item(label="Contract", value=f"{float(int(row.contract)/1000000)}M" if row.contract else "N/A")
-            ]
+                Item(label="Position", value="G"),
+                Item(
+                    label="Record", value=f"{row.wins}-{row.losses}-{row.ot_losses}" if row.wins is not None else "N/A"
+                ),
+                Item(label="Contract", value=f"{float(int(row.contract) / 1000000)}M" if row.contract else "N/A"),
+            ],
         )
 
         banner = CardBanner(
-            overallPercentile=round(float(row.overall_percentile)*100) if row.overall_percentile != None else "N/A",
+            overallPercentile=round(float(row.overall_percentile) * 100)
+            if row.overall_percentile is not None
+            else "N/A",
             tier=str(row.tier) if row.tier else None,
-            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png" if row.team_name else None
+            logoPath=f"https://spreadsheet-hockey-logos.s3.us-east-1.amazonaws.com/{row.team_name.replace(' ', '%20')}.png"
+            if row.team_name
+            else None,
         )
 
         header_stats = [
-            Item(label="SV%", value=round(float(row.save_pct),3) if row.save_pct else "N/A"),
+            Item(label="SV%", value=round(float(row.save_pct), 3) if row.save_pct else "N/A"),
             Item(label="GAA", value=round(float(row.gaa), 2) if row.gaa is not None else "N/A"),
         ]
 
         ratings = [
-            Item(label="GSAX", value=round(float(row.gsax_percentile*100)) if row.gsax_percentile != None else "N/A"),
-            Item(label="SUPPORT", value=round(float(row.def_percentile*100)) if row.def_percentile != None else "N/A"),
-            Item(label="TEAMMATES", value=round(float(row.team_percentile*100)) if row.team_percentile != None else "N/A"),
-            Item(label="OPPONENTS", value=round(float(row.sos_percentile*100)) if row.sos_percentile != None else "N/A"),
+            Item(
+                label="GSAX",
+                value=round(float(row.gsax_percentile * 100)) if row.gsax_percentile is not None else "N/A",
+            ),
+            Item(
+                label="SUPPORT",
+                value=round(float(row.def_percentile * 100)) if row.def_percentile is not None else "N/A",
+            ),
+            Item(
+                label="TEAMMATES",
+                value=round(float(row.team_percentile * 100)) if row.team_percentile is not None else "N/A",
+            ),
+            Item(
+                label="OPPONENTS",
+                value=round(float(row.sos_percentile * 100)) if row.sos_percentile is not None else "N/A",
+            ),
         ]
 
         stats = [
@@ -281,12 +316,14 @@ async def get_goalie_weekly_cards(
         page_size=page_size,
         total=total,
         total_pages=total_pages,
-        last_updated=last_updated_str
+        last_updated=last_updated_str,
     )
+
 
 # ===============================================
 # GET /goalies/cards/names
 # ===============================================
+
 
 @router.get("/cards/names", response_model=SearchResult)
 async def get_goalie_cards_search(
@@ -298,7 +335,7 @@ async def get_goalie_cards_search(
     # Validate parameters
     if not validate_param("season_id", season_id, gt=45, lt=55):
         raise HTTPException(status_code=400, detail="Invalid season_id")
-    if not validate_param("league_id", league_id, allowed_values=[37,38,84,39,112]):
+    if not validate_param("league_id", league_id, allowed_values=[37, 38, 84, 39, 112]):
         raise HTTPException(status_code=400, detail="Invalid league_id")
     if not validate_param("game_type_id", game_type_id, allowed_values=[1, 2]):
         raise HTTPException(status_code=400, detail="Invalid game_type_id")
@@ -317,10 +354,6 @@ async def get_goalie_cards_search(
 
     search_results = []
     for row in goalies:
-        search_results.append(
-            SearchResultItem(id=row.player_id, name=row.player_name)
-        )
+        search_results.append(SearchResultItem(id=row.player_id, name=row.player_name))
 
-    return SearchResult(
-        results=search_results
-    )
+    return SearchResult(results=search_results)

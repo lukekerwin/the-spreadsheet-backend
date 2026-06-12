@@ -1,20 +1,20 @@
 """API Key management endpoints."""
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.users import current_active_user
 from app.core.api_key import generate_api_key
+from app.core.users import current_active_user
 from app.database.session import get_db
 from app.models.users import User
-from pydantic import BaseModel
-
 
 router = APIRouter()
 
 
 class APIKeyResponse(BaseModel):
     """Response model for API key generation."""
+
     api_key: str
     message: str
 
@@ -39,8 +39,7 @@ async def generate_user_api_key(
     await session.commit()
 
     return APIKeyResponse(
-        api_key=new_api_key,
-        message="API key generated successfully. Store it securely - it won't be shown again!"
+        api_key=new_api_key, message="API key generated successfully. Store it securely - it won't be shown again!"
     )
 
 
